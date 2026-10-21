@@ -1,0 +1,954 @@
+{
+  "name": "Epomaker x Feker Galaxy80 (QMK)",
+  "vendorId": "0x4758",
+  "productId": "0x0080",
+  "matrix": {
+    "rows": 6,
+    "cols": 17
+  },
+  "keycodes": [
+    "qmk_lighting"
+  ],
+  "menus": [
+    {
+      "label": "Lighting",
+      "content": [
+        {
+          "label": "Backlight",
+          "content": [
+            {
+              "label": "Brightness",
+              "type": "range",
+              "options": [
+                0,
+                255
+              ],
+              "content": [
+                "id_qmk_rgb_matrix_brightness",
+                3,
+                1
+              ]
+            },
+            {
+              "label": "Effect",
+              "type": "dropdown",
+              "content": [
+                "id_qmk_rgb_matrix_effect",
+                3,
+                2
+              ],
+              "options": [
+                [
+                  "Off",
+                  0
+                ],
+                [
+                  "Solid",
+                  1
+                ],
+                [
+                  "Breathing",
+                  2
+                ],
+                [
+                  "Color Cycle",
+                  3
+                ],
+                [
+                  "Rainbow Wave",
+                  4
+                ],
+                [
+                  "Rainbow Rise",
+                  5
+                ],
+                [
+                  "Reactive",
+                  6
+                ],
+                [
+                  "Tap Off",
+                  7
+                ],
+                [
+                  "Colorful",
+                  8
+                ],
+                [
+                  "Flowing",
+                  9
+                ],
+                [
+                  "Shuttle",
+                  10
+                ],
+                [
+                  "Per-key",
+                  11
+                ]
+              ]
+            },
+            {
+              "showIf": "{id_qmk_rgb_matrix_effect} != 0 && {id_qmk_rgb_matrix_effect} != 11",
+              "label": "Speed",
+              "type": "range",
+              "options": [
+                0,
+                255
+              ],
+              "content": [
+                "id_qmk_rgb_matrix_effect_speed",
+                3,
+                3
+              ]
+            },
+            {
+              "showIf": "{id_qmk_rgb_matrix_effect} != 0 && {id_qmk_rgb_matrix_effect} != 11",
+              "label": "Color",
+              "type": "color",
+              "content": [
+                "id_qmk_rgb_matrix_color",
+                3,
+                4
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Galaxy80",
+      "content": [
+        {
+          "label": "Gaming",
+          "content": [
+            {
+              "label": "Game Mode",
+              "type": "toggle",
+              "content": [
+                "id_g80_game",
+                0,
+                14
+              ]
+            },
+            {
+              "label": "Snap Tap",
+              "type": "toggle",
+              "content": [
+                "id_g80_socd",
+                0,
+                7
+              ]
+            },
+            {
+              "label": "Snap Tap Mode",
+              "type": "dropdown",
+              "options": [
+                [
+                  "Off",
+                  0
+                ],
+                [
+                  "Last Input",
+                  1
+                ],
+                [
+                  "First Input",
+                  2
+                ],
+                [
+                  "Second Input",
+                  3
+                ],
+                [
+                  "Neutral",
+                  4
+                ]
+              ],
+              "content": [
+                "id_g80_snap_mode",
+                0,
+                28
+              ]
+            },
+            {
+              "label": "Snap Tap on A and D",
+              "type": "toggle",
+              "content": [
+                "id_g80_socd_ad",
+                0,
+                8
+              ]
+            },
+            {
+              "label": "Snap Tap on W and S",
+              "type": "toggle",
+              "content": [
+                "id_g80_socd_ws",
+                0,
+                9
+              ]
+            },
+            {
+              "label": "Snap Tap on Left and Right",
+              "type": "toggle",
+              "content": [
+                "id_g80_socd_lr",
+                0,
+                10
+              ]
+            },
+            {
+              "label": "Snap Tap on Up and Down",
+              "type": "toggle",
+              "content": [
+                "id_g80_socd_ud",
+                0,
+                11
+              ]
+            },
+            {
+              "label": "Win Lock",
+              "type": "toggle",
+              "content": [
+                "id_g80_win_lock",
+                0,
+                2
+              ]
+            },
+            {
+              "label": "Block Alt Tab",
+              "type": "toggle",
+              "content": [
+                "id_g80_alt_tab",
+                0,
+                3
+              ]
+            },
+            {
+              "label": "Block Alt F4",
+              "type": "toggle",
+              "content": [
+                "id_g80_alt_f4",
+                0,
+                4
+              ]
+            },
+            {
+              "label": "Swap WASD and Arrows",
+              "type": "toggle",
+              "content": [
+                "id_g80_wasd",
+                0,
+                5
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Keyboard",
+          "content": [
+            {
+              "label": "Debounce ms",
+              "type": "range",
+              "options": [
+                1,
+                10
+              ],
+              "content": [
+                "id_g80_debounce",
+                0,
+                12
+              ]
+            },
+            {
+              "label": "Eager Debounce",
+              "type": "toggle",
+              "content": [
+                "id_g80_deb_eager",
+                0,
+                13
+              ]
+            },
+            {
+              "label": "Wireless NKRO",
+              "type": "toggle",
+              "content": [
+                "id_g80_wl_nkro",
+                0,
+                27
+              ]
+            },
+            {
+              "label": "Firmware Version (read only)",
+              "type": "dropdown",
+              "options": [
+                [
+                  "1.0.0",
+                  100
+                ]
+              ],
+              "content": [
+                "id_g80_fw_version",
+                0,
+                33
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Power",
+          "content": [
+            {
+              "label": "Wireless Sleep After",
+              "type": "dropdown",
+              "options": [
+                [
+                  "Never",
+                  0
+                ],
+                [
+                  "1 min",
+                  1
+                ],
+                [
+                  "5 min",
+                  2
+                ],
+                [
+                  "30 min",
+                  3
+                ]
+              ],
+              "content": [
+                "id_g80_sleep",
+                0,
+                26
+              ]
+            },
+            {
+              "label": "Low Battery Warning",
+              "type": "dropdown",
+              "options": [
+                [
+                  "Fn blinks continuously",
+                  0
+                ],
+                [
+                  "Fn blinks 5 times every 30 s",
+                  1
+                ]
+              ],
+              "content": [
+                "id_g80_low_batt",
+                0,
+                29
+              ]
+            },
+            {
+              "label": "Max Brightness on Battery",
+              "type": "dropdown",
+              "options": [
+                [
+                  "No limit",
+                  0
+                ],
+                [
+                  "75 percent",
+                  1
+                ],
+                [
+                  "50 percent",
+                  2
+                ],
+                [
+                  "25 percent",
+                  3
+                ]
+              ],
+              "content": [
+                "id_g80_batt_cap",
+                0,
+                30
+              ]
+            },
+            {
+              "label": "Charge LED when Wired",
+              "type": "toggle",
+              "content": [
+                "id_g80_chg_wired",
+                0,
+                31
+              ]
+            },
+            {
+              "label": "Wired Idle Lights Off",
+              "type": "dropdown",
+              "options": [
+                [
+                  "Never",
+                  0
+                ],
+                [
+                  "1 min",
+                  1
+                ],
+                [
+                  "5 min",
+                  2
+                ],
+                [
+                  "10 min",
+                  3
+                ],
+                [
+                  "30 min",
+                  4
+                ]
+              ],
+              "content": [
+                "id_g80_idle_led",
+                0,
+                32
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Side Bar",
+          "content": [
+            {
+              "label": "Bar Mode",
+              "type": "dropdown",
+              "content": [
+                "id_g80_bar_mode",
+                0,
+                19
+              ],
+              "options": [
+                [
+                  "Follow Keys",
+                  0
+                ],
+                [
+                  "Gradient",
+                  1
+                ],
+                [
+                  "Gradient Flow",
+                  2
+                ],
+                [
+                  "Rainbow Wave",
+                  3
+                ],
+                [
+                  "Color Cycle",
+                  4
+                ],
+                [
+                  "Breathing",
+                  5
+                ],
+                [
+                  "Red",
+                  6
+                ],
+                [
+                  "Orange",
+                  7
+                ],
+                [
+                  "Yellow",
+                  8
+                ],
+                [
+                  "Green",
+                  9
+                ],
+                [
+                  "Cyan",
+                  10
+                ],
+                [
+                  "Blue",
+                  11
+                ],
+                [
+                  "Pink",
+                  12
+                ],
+                [
+                  "Status",
+                  13
+                ],
+                [
+                  "Off",
+                  14
+                ]
+              ]
+            },
+            {
+              "showIf": "{id_g80_bar_mode} == 1 || {id_g80_bar_mode} == 2",
+              "label": "Gradient Start",
+              "type": "color",
+              "content": [
+                "id_g80_grad_start",
+                0,
+                22
+              ]
+            },
+            {
+              "showIf": "{id_g80_bar_mode} == 1 || {id_g80_bar_mode} == 2",
+              "label": "Gradient End",
+              "type": "color",
+              "content": [
+                "id_g80_grad_end",
+                0,
+                23
+              ]
+            },
+            {
+              "label": "Status Indicators",
+              "type": "toggle",
+              "content": [
+                "id_g80_bar_ind",
+                0,
+                15
+              ]
+            },
+            {
+              "label": "Key Lights Off",
+              "type": "toggle",
+              "content": [
+                "id_g80_keys_off",
+                0,
+                6
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Key Colors",
+          "content": [
+            {
+              "label": "Paint Color",
+              "type": "color-palette",
+              "content": [
+                "id_g80_pk_palette",
+                0,
+                20
+              ]
+            },
+            {
+              "label": "Paint Turns Keys Off",
+              "type": "toggle",
+              "content": [
+                "id_g80_pk_paint_off",
+                0,
+                21
+              ]
+            },
+            {
+              "label": "Keyboard Editor",
+              "type": "toggle",
+              "content": [
+                "id_g80_pk_edit",
+                0,
+                16
+              ]
+            },
+            {
+              "label": "Editor Brush",
+              "type": "color",
+              "content": [
+                "id_g80_pk_brush",
+                0,
+                17
+              ]
+            },
+            {
+              "label": "Reset Key Colors",
+              "type": "button",
+              "options": [
+                1
+              ],
+              "content": [
+                "id_g80_pk_reset",
+                0,
+                18
+              ]
+            },
+            {
+              "label": "Apply Key Colors",
+              "type": "button",
+              "options": [
+                1
+              ],
+              "content": [
+                "id_g80_pk_apply",
+                0,
+                24
+              ]
+            },
+            {
+              "label": "Discard Changes",
+              "type": "button",
+              "options": [
+                1
+              ],
+              "content": [
+                "id_g80_pk_discard",
+                0,
+                25
+              ]
+            },
+            {
+              "label": "Unsaved Key Colors (read only)",
+              "type": "dropdown",
+              "options": [
+                [
+                  "No",
+                  0
+                ],
+                [
+                  "Yes, Apply or Discard",
+                  1
+                ]
+              ],
+              "content": [
+                "id_g80_pk_unsaved",
+                0,
+                34
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "customKeycodes": [
+    {
+      "name": "Safe\nBoot",
+      "title": "Bootloader, only while Right Shift is held",
+      "shortName": "SafeBoot"
+    },
+    {
+      "name": "Win\nLock",
+      "title": "Win Lock, blocks both Win keys and Menu, Fn Win",
+      "shortName": "WinLck"
+    },
+    {
+      "name": "Factory\nReset",
+      "title": "Hold 3 seconds for factory reset, Fn Backspace",
+      "shortName": "FRst"
+    },
+    {
+      "name": "Next\nColor",
+      "title": "Next color, Fn Backslash",
+      "shortName": "Color"
+    },
+    {
+      "name": "Keys\nOff",
+      "title": "Key lights off or on, indicators stay, Fn T",
+      "shortName": "KeyOff"
+    },
+    {
+      "name": "Bar\nMode",
+      "title": "Next side bar mode, also Right Shift, Fn Right Shift",
+      "shortName": "Bar"
+    },
+    {
+      "name": "Lock\nScreen",
+      "title": "Lock screen, Win L or Ctrl Cmd Q on Mac",
+      "shortName": "Lock"
+    },
+    {
+      "name": "Show\nDesk",
+      "title": "Show desktop, Win D or F11 on Mac",
+      "shortName": "Desk"
+    },
+    {
+      "name": "WASD\nSwap",
+      "title": "Swap WASD and arrows on or off",
+      "shortName": "WASD"
+    },
+    {
+      "name": "Alt Tab\nBlock",
+      "title": "Block Left Alt Tab on or off",
+      "shortName": "ATab"
+    },
+    {
+      "name": "Alt F4\nBlock",
+      "title": "Block Left Alt F4 on or off",
+      "shortName": "AF4"
+    },
+    {
+      "name": "Snap\nTap",
+      "title": "Snap Tap on or off, Fn S",
+      "shortName": "SOCD"
+    },
+    {
+      "name": "Key\nColors",
+      "title": "Key color editor on or off, Fn K",
+      "shortName": "PKEdit"
+    },
+    {
+      "name": "Game\nMode",
+      "title": "Game mode on or off, Fn Pause",
+      "shortName": "Game"
+    },
+    {
+      "name": "Sleep\nNow",
+      "title": "EXPERIMENTAL (deep sleep not yet validated on hardware): wireless deep sleep once all keys are released, any key wakes",
+      "shortName": "Sleep"
+    },
+    {
+      "name": "Mission\nControl",
+      "title": "Mac: Mission Control",
+      "shortName": "MCtrl"
+    },
+    {
+      "name": "Launch\npad",
+      "title": "Mac: Launchpad",
+      "shortName": "LPad"
+    },
+    {
+      "name": "Siri",
+      "title": "Mac: Siri, Cmd Space held for 0.5 seconds",
+      "shortName": "Siri"
+    },
+    {
+      "name": "Task\nView",
+      "title": "Windows: Task View, Win Tab",
+      "shortName": "Task"
+    },
+    {
+      "name": "File\nExplorer",
+      "title": "Windows: File Explorer, Win E",
+      "shortName": "Files"
+    },
+    {
+      "name": "Snip",
+      "title": "Windows: screen snip, Win Shift S",
+      "shortName": "Snip"
+    }
+  ],
+  "layouts": {
+    "labels": [
+      "Split Left Shift (ISO)",
+      "ISO Enter + #~",
+      "Split Right Shift (JIS Ro)"
+    ],
+    "keymap": [
+      [
+        "0,0\nl0",
+        {
+          "x": 0.25
+        },
+        "0,1\nl1",
+        "0,2\nl2",
+        "0,3\nl3",
+        "0,4\nl4",
+        {
+          "x": 0.25
+        },
+        "0,5\nl5",
+        "0,6\nl6",
+        "0,7\nl7",
+        "0,8\nl8",
+        {
+          "x": 0.25
+        },
+        "0,9\nl9",
+        "0,10\nl10",
+        "0,11\nl11",
+        "0,12\nl12",
+        {
+          "x": 0.25
+        },
+        "0,13\nl13",
+        {
+          "x": 0.25
+        },
+        "0,14\nl14",
+        "0,15\nl15",
+        "0,16\nl16"
+      ],
+      [
+        {
+          "y": 0.25
+        },
+        "1,0\nl17",
+        "1,1\nl18",
+        "1,2\nl19",
+        "1,3\nl20",
+        "1,4\nl21",
+        "1,5\nl22",
+        "1,6\nl23",
+        "1,7\nl24",
+        "1,8\nl25",
+        "1,9\nl26",
+        "1,10\nl27",
+        "1,11\nl28",
+        "1,12\nl29",
+        {
+          "w": 2
+        },
+        "1,13\nl30",
+        {
+          "x": 0.25
+        },
+        "1,14\nl31",
+        "1,15\nl32",
+        "1,16\nl33"
+      ],
+      [
+        {
+          "w": 1.5
+        },
+        "2,0\nl34",
+        "2,1\nl35",
+        "2,2\nl36",
+        "2,3\nl37",
+        "2,4\nl38",
+        "2,5\nl39",
+        "2,6\nl40",
+        "2,7\nl41",
+        "2,8\nl42",
+        "2,9\nl43",
+        "2,10\nl44",
+        "2,11\nl45",
+        "2,12\nl46",
+        {
+          "w": 1.5
+        },
+        "2,13\nl47\n\n1,0",
+        {
+          "x": 0.25
+        },
+        "2,14\nl48",
+        "2,15\nl49",
+        "2,16\nl50"
+      ],
+      [
+        {
+          "w": 1.75
+        },
+        "3,0\nl51",
+        "3,1\nl52",
+        "3,2\nl53",
+        "3,3\nl54",
+        "3,4\nl55",
+        "3,5\nl56",
+        "3,6\nl57",
+        "3,7\nl58",
+        "3,8\nl59",
+        "3,9\nl60",
+        "3,10\nl61",
+        "3,11\nl62",
+        {
+          "w": 2.25
+        },
+        "3,13\nl63\n\n1,0"
+      ],
+      [
+        {
+          "w": 2.25
+        },
+        "4,0\nl64\n\n0,0",
+        "4,2\nl65",
+        "4,3\nl66",
+        "4,4\nl67",
+        "4,5\nl68",
+        "4,6\nl69",
+        "4,7\nl70",
+        "4,8\nl71",
+        "4,9\nl72",
+        "4,10\nl73",
+        "4,11\nl74",
+        {
+          "w": 2.75
+        },
+        "4,13\nl75\n\n2,0",
+        {
+          "x": 1.25
+        },
+        "4,15\nl76"
+      ],
+      [
+        {
+          "w": 1.25
+        },
+        "5,0\nl77",
+        {
+          "w": 1.25
+        },
+        "5,1\nl78",
+        {
+          "w": 1.25
+        },
+        "5,2\nl79",
+        {
+          "w": 6.25
+        },
+        "5,6\nl80",
+        {
+          "w": 1.25
+        },
+        "5,10\nl81",
+        {
+          "w": 1.25
+        },
+        "5,11\nl82",
+        {
+          "w": 1.25
+        },
+        "5,12\nl83",
+        {
+          "w": 1.25
+        },
+        "5,13\nl84",
+        {
+          "x": 0.25
+        },
+        "5,14\nl85",
+        "5,15\nl86",
+        "5,16\nl87"
+      ],
+      [
+        {
+          "y": 3.0,
+          "x": 13.75,
+          "w": 1.25,
+          "h": 2,
+          "w2": 1.5,
+          "h2": 1,
+          "x2": -0.25
+        },
+        "3,13\nl63\n\n1,1"
+      ],
+      [
+        {
+          "x": 12.75
+        },
+        "3,12\nl63\n\n1,1"
+      ],
+      [
+        {
+          "w": 1.25
+        },
+        "4,0\nl64\n\n0,1",
+        "4,1\nl64\n\n0,1",
+        {
+          "x": 10.0
+        },
+        "4,12\nl75\n\n2,1",
+        {
+          "w": 1.75
+        },
+        "4,13\nl75\n\n2,1"
+      ]
+    ]
+  }
+}

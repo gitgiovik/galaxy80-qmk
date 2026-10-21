@@ -1,0 +1,48 @@
+name: Bug report
+description: Something does not work as documented on a board running this firmware.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Unofficial firmware, not affiliated with Epomaker, Feker, Keychron or Sonix.
+        If your board is not the one described in the README ("Is this my board?"), use the hardware-revision template instead and do not flash.
+  - type: input
+    id: version
+    attributes:
+      label: Firmware release and image
+      description: Release tag and which image (via, default, minimal).
+      placeholder: v0.1.0, via
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection mode
+      options: [USB cable, 2.4G dongle, Bluetooth, Several / not sure]
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Host OS and VIA version
+      placeholder: Windows 11, VIA 3.x web
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I can still enter the ROM bootloader (hold P or Esc while plugging in).
+        - label: I searched existing issues.

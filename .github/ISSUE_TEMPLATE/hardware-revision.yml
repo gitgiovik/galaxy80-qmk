@@ -1,0 +1,49 @@
+name: Hardware revision report
+description: Your board looks different from the supported one, or you want to report a new revision. Do not flash before this is reviewed.
+labels: [hardware-revision]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Supported today: PCB marking "galaxy80-RGB-HFD" dated 20231124, SN32F248BF, stock firmware v1.10, stock USB ID 05AC:024F.
+        Anything else is untested. Please do not flash it; give us the details below first.
+  - type: input
+    id: usbid
+    attributes:
+      label: Stock USB vendor:product ID
+      description: As shown by the OS before any flashing.
+      placeholder: 05AC:024F
+    validations:
+      required: true
+  - type: input
+    id: fwversion
+    attributes:
+      label: Stock firmware version
+      description: As shown by the official driver.
+    validations:
+      required: true
+  - type: input
+    id: pcb
+    attributes:
+      label: PCB marking and date code
+      description: Silkscreen text on the PCB, and the date code if printed.
+    validations:
+      required: true
+  - type: input
+    id: mcu
+    attributes:
+      label: MCU marking
+      description: Text printed on the main chip.
+      placeholder: SN32F248BF
+  - type: textarea
+    id: photos
+    attributes:
+      label: PCB photos
+      description: Drag in clear photos of both sides of the PCB, including the chip and the radio module.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Purchase date and shop, layout (ANSI/ISO), differences you noticed.

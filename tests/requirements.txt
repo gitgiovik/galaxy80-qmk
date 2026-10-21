@@ -1,0 +1,2 @@
+# Python packages for the emulator suite (tests/README.md)
+unicorn==2.1.4

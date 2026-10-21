@@ -1,0 +1,119 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # Same compiler as the locally tested images (GNU Arm Embedded 10.3-2021.10).
+  ARM_GCC_URL: https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2
+  ARM_GCC_SHA256: 97dbb4f019ad1650b732faffcc881689cedc14e2b7ee863d390e0a41ef16c9a3
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - name: Install arm-none-eabi-gcc 10.3-2021.10
+        run: |
+          curl -fsSL -o /tmp/gcc-arm.tar.bz2 "$ARM_GCC_URL"
+          echo "$ARM_GCC_SHA256  /tmp/gcc-arm.tar.bz2" | sha256sum -c -
+          sudo tar -xjf /tmp/gcc-arm.tar.bz2 -C /opt
+          echo "/opt/gcc-arm-none-eabi-10.3-2021.10/bin" >> "$GITHUB_PATH"
+
+      - name: Install QMK CLI and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libhidapi-hidraw0 libusb-1.0-0
+          python -m pip install --upgrade pip
+          python -m pip install qmk==1.2.0 -r tests/requirements.txt
+          (cd tests/emulator/via_reader && npm install --no-audit --no-fund)
+          arm-none-eabi-gcc --version | head -1
+
+      - name: Fetch the pinned SonixQMK tree
+        run: tools/fetch_qmk.sh
+
+      - name: Build via, default, minimal, debug
+        env:
+          G80_JOBS: "4"
+        run: tools/build.sh via default minimal debug
+
+      - name: Check sizes
+        run: python tools/check_size.py out/emu
+
+      - name: Static image checks
+        run: python tests/emulator/static_check.py out/emu via default stage1
+
+      - name: Emulator suite
+        env:
+          G80_KBD: ${{ github.workspace }}/keyboards/epomaker/galaxy80
+          G80_OBJDUMP: arm-none-eabi-objdump
+          # Each unicorn engine commits about 1 GiB: keep the parallelism low.
+          G80_JOBS: "2"
+          # Expected failures of the current baseline (see tests/README.md); remove entries when fixed.
+          KNOWN_FAIL_REGEX: "^FAIL.*F2-stage1"
+        run: |
+          set -u
+          FW="$PWD/out/emu"; T="$PWD/out/t"; mkdir -p "$T"
+          cd tests/emulator
+          jobs_list() {
+            for b in A B C D E F E-L1 E-L9 E-L10 E-L12 E-L13 E-L14 E-L15 E-L16 S3 S4; do
+              echo "run_tests.py --block=$b $b/console.txt"
+            done
+            echo "test_wireless.py - wireless.txt"
+            echo "test_host_off.py - host_off.txt"
+            for x in suite_*.py; do [ -f "$x" ] && echo "$x - ${x%.py}.txt"; done
+          }
+          run_one() {
+            script=$1; opt=$2; out="$T/$3"; mkdir -p "$(dirname "$out")"
+            for try in 1 2 3; do
+              if [ "$opt" = - ]; then python -u "$script" "$FW" > "$out" 2>&1
+              else python -u "$script" "$FW" "$(dirname "$out")" "$opt" > "$out" 2>&1; fi
+              rc=$?
+              # exit 139 = unicorn segfault under memory pressure (harness noise): rerun, a test FAIL never is
+              [ $rc = 139 ] || break
+            done
+            echo "EXIT $rc" >> "$out"
+          }
+          export -f run_one; export FW T
+          jobs_list | xargs -P "$G80_JOBS" -L 1 bash -c 'run_one "$0" "$1" "$2"'
+          cd "$T"
+          status=0
+          for f in $(find . -name '*.txt' ! -name trace.txt | sort); do
+            p=$(grep -c '^PASS' "$f" || true); q=$(grep -c '^FAIL' "$f" || true)
+            note=""
+            if grep -qE 'Traceback|Segmentation|fatal exception' "$f" || ! grep -q '^EXIT 0$' "$f"; then note="  CRASH"; fi
+            printf '%-32s PASS %3d  FAIL %3d%s\n' "$f" "$p" "$q" "$note"
+          done | tee "$PWD/../emu_summary.txt"
+          grep -q CRASH "$PWD/../emu_summary.txt" && status=1
+          unexpected=$(cat $(find . -name '*.txt' ! -name trace.txt) | grep '^FAIL' | grep -vE "$KNOWN_FAIL_REGEX" || true)
+          if [ -n "$unexpected" ]; then echo "UNEXPECTED FAILS:"; echo "$unexpected" | cut -c1-300; status=1; fi
+          exit $status
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: galaxy80-firmware
+          path: |
+            out/*.bin
+            out/SHA256SUMS
+            out/BUILDINFO.txt
+            out/build_*.log
+            out/emu_summary.txt
+            out/t/
+          if-no-files-found: warn
