@@ -577,7 +577,7 @@ bool g80_wl_process_record(keyrecord_t *record) {
     g80_radio_request(g80_wl_code());
     g80_radio_stats.link = 0;
     g80_link_t           = timer_read32();
-    g80_pair_col         = G80_LAYER_LOCKED() ? 0 : c; /* channel switch only: pairing needs Fn held */
+    g80_pair_col         = c;
     g80_pair_t0          = timer_read();
     g80_pair_sent        = 0;
     return false;
@@ -675,7 +675,7 @@ void g80_radio_task(void) {
         const uint32_t age  = timer_elapsed32(g80_link_t);
         if ((link == G80_LINK_PAIRING && age >= G80_PAIR_WIN_MS) || (link == G80_LINK_LOST && age >= G80_LOST_WIN_MS)) {
             g80_win_t = g80_link_t;
-            g80_lpm_countdown_set(link == G80_LINK_PAIRING ? 30u : 5u);
+            g80_lpm_countdown = link == G80_LINK_PAIRING ? 30u : 5u;
         }
     }
     if (g80_wl_on && g80_radio_stats.link == G80_LINK_CONNECTED && (g80_bat_wake || timer_elapsed32(g80_bat_time) >= G80_BAT_POLL_MS)) {

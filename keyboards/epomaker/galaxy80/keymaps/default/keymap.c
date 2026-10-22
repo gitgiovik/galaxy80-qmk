@@ -11,5 +11,5 @@
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [0] = G80_LAYER_BASE,
-    [1] = G80_LAYER_FN(G80_LLCK, _______),
+    [1] = G80_LAYER_FN,
 };

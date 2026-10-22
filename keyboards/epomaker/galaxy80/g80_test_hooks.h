@@ -12,18 +12,19 @@
 //      via_custom_value_command_kb, via_init_kb, matrix_scan_custom, mcu_reset, chSysHalt,
 //      g80_lpm_sleep (local, noinline: the deep-sleep sequence, its WFI is recognised by name),
 //      bootmagic_reset_eeprom, eeconfig_update_kb, g80_wdt_kick, g80_pk_rgb.
+//    The option getters g80_opt_* (g80_battery.c, noinline) are patched by the battery suites.
 //    The VIA image additionally relies on the QMK entry points raw_hid_receive and
 //    via_eeprom_is_valid.
 //
 // 2. Data read or written from the emulator (global; the layout of the structs and tables is part
 //    of the contract):
 //      g80_config (g80_config_t, galaxy80.h)           g80_pk[G80_PK_BYTES]    g80_pk_editing
-//      g80_frame[G80_PHASES][G80_LED_COLS]             g80_led_map, g80_led_pos, g80_col_chan
-//      g80_isr_steps, g80_scan_passes, g80_scan_enter_timeouts, g80_scan_release_timeouts
+//      g80_frame[G80_PHASES][G80_LED_COLS]             g80_led_pos, g80_col_chan
+//      g80_isr_steps (g80_rgb.c)
 //      g80_scan_fallback (matrix.c)                    g80_debounce_ms (g80_debounce.c)
 //      g80_radio_stats (g80_radio_stats_t)             g80_pk_snap (g80_perkey.c)
 //      g80_pk_dirty (g80_perkey.c: "unsaved")          g80_ucfg (g80_user_config_t, eeconfig_user)
-//      g80_lpm_countdown, g80_lpm_opt, g80_lpm_stats (g80_lpm.h, deep-sleep tests)
+//      g80_lpm_countdown, g80_lpm_stats (g80_lpm.h, deep-sleep tests)
 //      g80_save_keymap, g80_save_rgb (g80_settings.h)   g80_frst_running (g80_fn.c: factory reset)
 //      g80_save_deflayer (g80_settings.h)
 //    Called by the emulator: g80_pk_store (g80_perkey.c: the per-key flash-write site, Apply and

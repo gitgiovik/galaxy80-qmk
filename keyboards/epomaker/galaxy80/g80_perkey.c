@@ -162,10 +162,13 @@ void g80_pk_load(void) {
 }
 
 /* Writes only the runs of changed bytes (wear-leveling log economy), then the layout byte (an
- * interrupted write leaves the old layout byte = defaults at the next boot). The watchdog is fed
- * before each run (a run that fills the log triggers a consolidation: erase + rewrite). Bounded
- * (no feed inside a loop that could spin forever): i only grows, at most G80_PK_BYTES / 2
- * + 1 runs, each run one QMK EEPROM call. */
+ * interrupted write leaves the old layout byte = defaults at the next boot). A run is at most 5
+ * bytes = one QMK log entry (same log use as one longer call, which QMK cuts into 5-byte entries):
+ * the call that fills the log and triggers a consolidation then has no tail that is neither in the
+ * log nor yet in the consolidated copy, so a power cut inside that consolidation loses at most those
+ * 5 bytes of the Apply, not the rest of a long run. The watchdog is fed before each run. Bounded (no
+ * feed inside a loop that could spin forever): i only grows, at most G80_PK_BYTES runs, each run one
+ * QMK EEPROM call. */
 void g80_pk_store(void) {
     g80_pk_dirty = false;
 #    ifdef VIA_ENABLE
@@ -178,7 +181,7 @@ void g80_pk_store(void) {
             continue;
         }
         uint8_t j = (uint8_t)(i + 1);
-        while (j < G80_PK_BYTES && old[j] != g80_pk[j]) {
+        while (j < G80_PK_BYTES && j - i < 5 && old[j] != g80_pk[j]) {
             j++;
         }
         g80_wdt_kick();

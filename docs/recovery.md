@@ -59,7 +59,7 @@ the stock firmware.
 | Repeated restarts every few seconds | the watchdog is catching a hang: enter the ISP, flash `minimal`, report with the image name |
 | Driver installed on the wrong device | Device Manager > uninstall the device's driver (tick "delete driver software"), unplug and replug |
 | Slider ON, replug has no effect | slider OFF, unplug, wait 30 s |
-| Wireless deep sleep seems stuck | the chip may be asleep or hung on battery: slider OFF, unplug the cable, wait 30 s, then enter the ISP if needed. Set "Wireless Sleep After" to Never |
+| Wireless deep sleep seems stuck | the chip may be asleep or hung on battery: slider OFF, unplug the cable, wait 30 s, then enter the ISP if needed. Then plug the cable in and set "Deep Sleep After" to Never in VIA (the stored option re-arms deep sleep in wireless after a reset) |
 
 ## Going back to stock
 

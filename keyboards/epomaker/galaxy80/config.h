@@ -14,12 +14,16 @@
  * backwards from the end of flash, skipping WEAR_LEVELING_EFL_OMIT_LAST_SECTOR_COUNT
  * 64-byte sectors: 2048 B -> sectors 991..1022 = 0xF7C0..0xFFBF.
  * Sector 1023 (0xFFC0..0xFFFF, boot flag 0xAAAA5555 at 0xFFFC) is never touched.
- * The link-time guard galaxy80_guard.ld fails the build if code reaches 0xF7C0. */
+ * Below it, G80_WL_AUX_BASE..0xF7BF (4 sectors, 256 B) belongs to the power-fail-safe
+ * consolidation of g80_wear_leveling.c: 2 scratch sectors (0xF6C0, 0xF700) and the 2-sector state
+ * log (0xF740, 0xF780). The link-time guard galaxy80_guard.ld fails the build if code reaches
+ * 0xF6C0. */
 #define WEAR_LEVELING_BACKING_SIZE 2048
 #define WEAR_LEVELING_LOGICAL_SIZE 1024
 #define WEAR_LEVELING_EFL_OMIT_LAST_SECTOR_COUNT 1
 /* custom backing store (g80_wear_leveling.c, VIA image): 4-byte flash lines */
 #define BACKING_STORE_WRITE_SIZE 4
+#define G80_WL_AUX_BASE 0xF6C0u
 
 /* Key scan timing, shared by the polled scan (matrix.c) and the ISR scan (g80_rgb.c).
  * 48 MHz core: wait_cpuclock(96) ~ 2 us column settle (wait_cpuclock() supports only 1..135

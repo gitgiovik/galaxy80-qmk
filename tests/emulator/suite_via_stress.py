@@ -327,23 +327,25 @@ def flash_summary(log, t0=-1, t1=1e18):
 
 
 def consolidations(log, t0=-1):
-    """runs of >= 8 erases (+ the programs right after): [(t_start, t_end_incl_stall, n_erase, n_prog)]"""
+    """power-fail-safe consolidations (g80_wear_leveling.c): from the first state-log / scratch op or erase to
+    the state-log clear (erase of 0xF780) after the 16 hash + log erases:
+    [(t_start, t_end_incl_stall, n_erase, n_prog)]"""
     out = []
     i = 0
     L = [x for x in log if x[0] >= t0]
     while i < len(L):
-        if L[i][1] == 'ERASE':
-            j = i
-            while j < len(L) and L[j][1] == 'ERASE':
+        if L[i][1] == 'ERASE' or L[i][2] < 0xF7C0:
+            j, hl = i, 0
+            while j < len(L) - 1:
+                if L[j][1] == 'ERASE' and L[j][2] >= 0xFBC0:
+                    hl += 1
+                if hl >= 16 and L[j][1] == 'ERASE' and L[j][2] == 0xF780:
+                    break
                 j += 1
-            ne = j - i
-            k = j
-            while k < len(L) and L[k][1] == 'PROGRAM' and L[k][0] - L[k - 1][0] < 50:
-                k += 1
-            if ne >= 8:
-                last = L[k - 1]
-                out.append((L[i][0], last[0] + (last[4] or 0) / 1e3, ne, k - j))
-            i = k
+            seg = L[i:j + 1]
+            last = L[j]
+            out.append((L[i][0], last[0] + (last[4] or 0) / 1e3, sum(x[1] == 'ERASE' for x in seg), sum(x[1] == 'PROGRAM' for x in seg)))
+            i = j + 1
         else:
             i += 1
     return out
@@ -704,7 +706,8 @@ if want(4):
               loop_gap_max=round(loop_b, 2), max_feed_gap_ms=round(feed_b * 1e3, 1),
               typing_case=dict(sent=sent_c, typing_end=t_endc, first_erase=first_er_c, erases=len(er_c), outside_gate=len(er_c_bad),
                                feed_gap_ms=round(feed_c * 1e3, 1)))
-    ok4 = (g_prog <= bound and cls['program-only'] <= bound and c is not None and len(er) == 32 and feed_b < FEED_GAP_MAX_S
+    hl_er = sum(1 for x in er if x[2] >= 0xFBC0)      # hash + log sectors: 16 erases per consolidation
+    ok4 = (g_prog <= bound and cls['program-only'] <= bound and c is not None and hl_er == 16 and feed_b < FEED_GAP_MAX_S
            and feed_c < FEED_GAP_MAX_S and er_c and not er_c_bad and first_er_c >= t_endc)
     check('T-VIA-STRESS-4', 'ISR gap per flash op type with the stall model (program %.0f us, erase %.0f us [?]): line programs within the '
           'V-9 scan bound %.0f ms; erases only inside write-gate windows, also when the consolidating write arrives while typing '
@@ -750,9 +753,9 @@ if want(6):
     gaps = [b[0] - a[0] for a, b in zip(saves, saves[1:])]
     # the cap counts from the first change in the firmware (taken by raw_hid_task ~1 ms after the host
     # send used as reference here) plus one main-loop pass
-    ok6 = saves and first_lat <= 30000 + 50 and all(g >= 3000 for g in gaps) and m.max_feed_gap < FEED_GAP_MAX_S
+    ok6 = saves and first_lat <= 30000 + 50 and all(g >= 1000 for g in gaps) and m.max_feed_gap < FEED_GAP_MAX_S
     check('T-VIA-STRESS-6', 'V-1: slider drag of %d steps over %.0f s (set + save each step): first settings write <= 30 s after the first change, '
-          'writes >= 3 s apart, WDT feed gap < 500 ms' % (steps, dur / 1e3), bool(ok6),
+          'writes >= 1 s apart (G80_SAVE_MIN_INTERVAL_MS), WDT feed gap < 500 ms' % (steps, dur / 1e3), bool(ok6),
           'first change at %.0f ms, drag end %.0f ms; save sequences %d at %s ms (ops %s); first write %s ms after the first change; '
           'min gap between writes %s ms; WDT feed gap max %.1f ms' % (t_first, t_last, len(saves), [round(s[0]) for s in saves[:6]],
                                                                       [s[2] for s in saves[:6]], None if first_lat is None else round(first_lat),
@@ -797,16 +800,26 @@ if want(7):
     m, n0, _ = trigger_run()
     ops = m.flash_ops[n0:]
     km_new, mc_new = km_read_call(m)
-    first_er = next((i for i, o in enumerate(ops) if o[0] == 'ERASE'), None)
+    # consolidation window: first state-log / scratch op or erase .. the state-log clear (erase 0xF780) after
+    # the 16 hash + log erases
+    first_er = next((i for i, o in enumerate(ops) if o[0] == 'ERASE' or o[1] < 0xF7C0), None)
+    last_cons = None
+    if first_er is not None:
+        hl = 0
+        for i_, o in enumerate(ops[first_er:], first_er):
+            hl += o[0] == 'ERASE' and o[1] >= 0xFBC0
+            if hl >= 16 and o[0] == 'ERASE' and o[1] == 0xF780:
+                last_cons = i_
+                break
     n_ops = len(ops)
     m = None
-    # fixed points: first / mid / last erase, first programs, the last consolidated line and the 2 hash
-    # lines (32 erases + 256 + 2 programs), the first log append after it, the last op; then random
-    # points inside the consolidation
+    # fixed points: the consolidation start, its first ops, its middle, its last ops (hash, state clear),
+    # the first log append after it, the last op; then random points inside the consolidation
     fe = first_er or 0
-    pts = [fe, fe + 1, fe + 16, fe + 31, fe + 32, fe + 33, fe + 288, fe + 289, fe + 290, n_ops - 1] if first_er is not None else []
+    le = last_cons if last_cons is not None else min(n_ops - 1, fe + 290)
+    pts = [fe, fe + 1, fe + 2, (fe + le) // 2, le - 3, le - 1, le, le + 1, le + 2, n_ops - 1] if first_er is not None else []
     while len(pts) < trials:
-        pts.append(rnd.randrange(fe, min(n_ops, fe + 291)))
+        pts.append(rnd.randrange(fe, min(n_ops, le + 2)))
     pts = pts[:trials]
     res = []
     for k in pts:
@@ -835,8 +848,8 @@ if want(7):
         if which == 'MIX-old/new':
             ch = [i for i in range(OFF, OFF + len(new_chunk)) if km[i] == km_new[i] != km_old[i]]
             which += '(%d B new)' % len(ch)
-        # inside = at least one erase done and the hash (op fe + 289) not yet written
-        in_cons = first_er is not None and fe < k < fe + 290
+        # inside = at least one consolidation op done and the state log not yet cleared
+        in_cons = first_er is not None and fe < k <= le
         if which.startswith('MIX'):
             # keycode-wise: every 2-byte keycode is the old or the new one (never half of each)
             torn = [i for i in range(0, KM_BYTES, 2) if km[i:i + 2] not in (km_old[i:i + 2], km_new[i:i + 2])]
@@ -848,13 +861,16 @@ if want(7):
     # design 3.6: inside the consolidation only old / new / default; in the log appends around it QMK's
     # byte-by-byte VIA writes can be cut between two bytes (KNOWN LIMIT, reported, not a failure:
     # TORN = a keycode with one byte old and one new)
+    # power-fail-safe consolidation (2026-10-21): a cut inside it keeps the data of main + log = the old
+    # keymap plus the 2-byte steps of the trigger already logged (MIX-old/new prefix), never the defaults
     bad = [x for x in res if not x['boot'] or not x['macros_ok'] or x['keymap'] in ('NO-BOOT', 'CORRUPT')
-           or (x['in_consolidation'] and x['keymap'] not in ('old', 'new', 'default'))]
+           or (x['in_consolidation'] and (x['keymap'] in ('default', 'TORN', 'CORRUPT')))]
     limit = [(x['cut'], x['keymap']) for x in res if not x['in_consolidation'] and x['keymap'] not in ('old', 'new', 'default')]
     from collections import Counter
     cnt = Counter(x['keymap'] for x in res)
     check('T-VIA-STRESS-7', '%d power cuts during the trigger write (consolidation from op %d, %d ops): the board always boots; a cut '
-          'inside the consolidation leaves the old, new or default keymap, never a crash' % (
+          'inside the consolidation leaves the old keymap plus the steps already logged (old / MIX prefix / new), never the defaults, '
+          'never a crash' % (
               len(res), first_er if first_er is not None else -1, n_ops), not bad,
           'outcomes %s (inside the consolidation: %s); bad %d %s; KNOWN LIMIT (log appends outside the consolidation, QMK writes VIA '
           'data byte by byte: MIX = partly applied, TORN = one keycode half old / half new): %s; re-format at boot (hash invalid -> '

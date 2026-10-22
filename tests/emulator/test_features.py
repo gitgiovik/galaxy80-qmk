@@ -215,13 +215,13 @@ def run(ctx):
         m.run(3400)                                   # stage 4: VIA "save" deferred ~3 s
         d1 = rd(m, 'g80_debounce_ms', 1)[0]
         ops = m.flash_ops[n0:]
-        bad = [o for o in ops if not (0xF7C0 <= o[1] < 0xFFC0)]
+        bad = [o for o in ops if not (0xF6C0 <= o[1] < 0xFFC0)]
         m2 = power_cycle(m, 'via')
         m2.run(300)
         d2 = rd(m2, 'g80_debounce_ms', 1)[0]
         g2 = via(m2, 12, cmd=0x08)[3]
         c2 = cfg(m2)
-        check('S3-DEB-persist', 'debounce from VIA (id 12): default 5 ms; set 8 + save -> written ~3 s later (stage 4: deferred), flash ops only in 0xF7C0..0xFFBF; after a power cycle 8 ms (eeconfig_kb bits 14..17), VIA get = 8',
+        check('S3-DEB-persist', 'debounce from VIA (id 12): default 5 ms; set 8 + save -> written ~1 s later (deferred), flash ops only in 0xF6C0..0xFFBF; after a power cycle 8 ms (eeconfig_kb bits 14..17), VIA get = 8',
               d0 == 5 and d1 == 8 and early == 0 and ops and not bad and d2 == 8 and g2 == 8 and (c2 >> 14) & 15 == 8,
               'boot=%s ms, after set=%d, flash ops within 20 ms=%d, after 3 s=%d (outside=%d), after power cycle=%d ms, VIA get=%d, cfg=%#x' % (d0, d1, early, len(ops), len(bad), d2, g2, c2))
 
@@ -275,7 +275,7 @@ def run(ctx):
         early = [o for o in m.flash_ops[n0:] if o[-1] < 830 + 240]       # Apply waits for the write gate (250 ms quiet)
         m.run(4200)
         ops = m.flash_ops[n0:]
-        bad = [o for o in ops if not (0xF7C0 <= o[1] < 0xFFC0)]
+        bad = [o for o in ops if not (0xF6C0 <= o[1] < 0xFFC0)]
         exp_a = fw_rgb(m, LED_A, 255)
         got_a, got_w, got_f = frame_rgb(m, LED_A), frame_rgb(m, LED_W), frame_rgb(m, LED_F)
         exp_w = fw_rgb(m, LED_W, 255)
@@ -483,9 +483,9 @@ def run(ctx):
         nfx = max(ids.values()) + 1
         ok = (j['vendorId'] == '0x4758' and j['productId'] == '0x0080' and fx and [o[1] for o in fx] == list(range(nfx))
               and all(len(o[0]) <= 18 for o in fx) and fx[ids['G80_PER_KEY']][0] == 'Per-key' and vids == set(range(2, 35))
-              and len(j['customKeycodes']) == 21)
+              and len(j['customKeycodes']) == 14)
         check('S3-VIA', 'VIA definition: 4758:0080, effect dropdown = ids 0..%d in compiled order with short names (<= 18 chars), '
-              'custom value ids 2..34 (id 1 = VIA key painter protocol, stage 4; 24..34 phase C), 21 custom keycodes (G80_SLEEP, 6 OS keycodes appended)' % (nfx - 1), ok,
+              'custom value ids 2..34 (id 1 = VIA key painter protocol, stage 4; 24..34 phase C), 14 custom keycodes (G80_SBOOT..G80_GAME)' % (nfx - 1), ok,
               'effects=%s; value ids=%s; keycodes=%d' % ([o[0] for o in fx] if fx else None, sorted(vids), len(j['customKeycodes'])))
 
 

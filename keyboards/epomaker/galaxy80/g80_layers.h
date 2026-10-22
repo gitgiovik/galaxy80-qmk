@@ -12,12 +12,11 @@
 //     Fn+T                   key backlight off/on        Fn+RShift    next side-bar mode
 //     Fn+Ins                 all LEDs off/on (RM_TOGG)   Fn+N         NKRO on/off
 //     Fn+L / Fn+D            lock screen / show desktop  Fn+G         WASD <-> arrows
-//     Fn+Tab / Fn+Caps       block LAlt+Tab / LAlt+F4    Fn+Q/W/E/R/Space  reserved (wireless)
+//     Fn+Tab / Fn+Caps       block LAlt+Tab / LAlt+F4    Fn+Q/W/E/R   wireless channels
+//     Fn+Space (hold)        battery gauge on the side bar
 //   Additions of this firmware:
 //     Fn+S                   SOCD / snap tap on/off      Fn+K         per-key colour editor
 //     Fn+Pause               game mode on/off            Fn+C         Caps Word
-//     Fn+F13                 Layer Lock: the Fn layer stays on (Fn-lock) until Fn or F13 is pressed
-// `extra0`/`extra1` = Fn+F13 / Fn+PrtSc, keymap slots (Layer Lock / transparent in all keymaps).
 #pragma once
 
 /* Caps Word only where it is built (RGB images, post_rules.mk) */
@@ -25,12 +24,6 @@
 #    define G80_CAPW CW_TOGG
 #else
 #    define G80_CAPW _______
-#endif
-/* Layer Lock likewise (RGB images, post_rules.mk) */
-#ifdef LAYER_LOCK_ENABLE
-#    define G80_LLCK QK_LLCK
-#else
-#    define G80_LLCK _______
 #endif
 
 // clang-format off
@@ -43,8 +36,8 @@
     KC_LCTL, KC_LGUI, KC_LALT,                            KC_SPC,                    KC_RALT, MO(1),   KC_APP,  KC_RCTL,          KC_LEFT, KC_DOWN, KC_RGHT  \
 )
 
-#define G80_LAYER_FN(extra0, extra1) LAYOUT_all( \
-    G80_SBOOT, KC_MYCM, KC_WHOM, KC_CALC, KC_MAIL, KC_MSEL, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, extra0, extra1, _______, G80_GAME, \
+#define G80_LAYER_FN LAYOUT_all( \
+    G80_SBOOT, KC_MYCM, KC_WHOM, KC_CALC, KC_MAIL, KC_MSEL, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______, _______, _______, G80_GAME, \
     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, G80_FRST,         RM_TOGG, _______, _______, \
     G80_ATAB, KC_NO,  KC_NO,   KC_NO,   KC_NO,   G80_BLTG, _______, _______, _______, _______, _______, _______, _______, G80_COLOR,       _______, _______, _______, \
     G80_AF4, _______, G80_SOCD, G80_DESK, _______, G80_WASD, _______, _______, G80_EDIT, G80_LOCK, _______, _______, _______, RM_NEXT,                                    \

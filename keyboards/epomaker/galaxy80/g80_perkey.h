@@ -13,7 +13,7 @@
 /* First byte of the VIA custom-config block = EEPROM layout version (3 layers, 2 B per LED, effect
  * ids of the trimmed effect list). Any other value: via_init_kb() resets every VIA block (keymaps,
  * macros, colours), because their addresses or meanings moved. */
-#    define G80_EE_LAYOUT 0xA7
+#    define G80_EE_LAYOUT 0xA8
 
 /* 8-bit saturation <-> the 4-bit nibble the table stores. */
 static inline uint8_t g80_s8_to_s4(uint8_t s) {

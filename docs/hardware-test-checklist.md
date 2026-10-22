@@ -40,20 +40,16 @@ Rules:
 
 | Id | Do | Expected |
 |---|---|---|
-| H-2 | Go through the editor, side-bar modes, game mode, Snap Tap (Fn+S), debounce setting, Caps Word, Mac/Win switch, factory reset (Fn+Backspace 3 s), and every effect in VIA | all as in the key reference |
+| H-2 | Go through the editor, side-bar modes, game mode, Snap Tap (Fn+S), debounce setting, Caps Word, Mac/Win switch, factory reset (Fn+Backspace 3 s), and the three effects in VIA (Solid, Rainbow, Per-key) | all as in the key reference |
 | H-2a | Wired, switch the PC off with USB power staying on (if you can) | the LEDs go dark and come back with the PC |
 
 ## New keys and options
 
 | Id | Do | Expected |
 |---|---|---|
-| H-K1 | Fn+F13 (Layer Lock), then Fn+Space and Fn+Enter without holding Fn; press Fn once | Fn layer stays on; the second Fn press releases it |
-| H-K1a | Make a VIA backup first. Fn+F13 (Layer Lock), then hold Backspace alone 4 s; press Ctrl+RShift+Esc; slider ON: hold R alone 5 s. Press Fn to unlock | no white flashes, no restart, no bootloader, keymap and colours intact; R switches to 2.4G but the key does not start the fast pairing blink. Fn+Backspace held 3 s (unlocked) still runs the factory reset |
-| H-K2 | Shift+Backspace in a text editor | deletes forward; Backspace alone still backspaces |
 | H-K3 | Assign `CL_TOGG` (Ctrl/Caps swap) on *Any*, press it, wait 5 s, replug | the swap works at once and is still active after the replug; no stutter of the LEDs when pressing |
-| H-K4 | Mac and Windows OS keys (VIA custom keycodes) | the matching shortcut (Task View, File Explorer, Snip; on a Mac Mission Control, Launchpad, Siri) |
 | H-K5 | Snap Tap Mode Last, First, Second, Neutral, held A+D and W+S in a key tester | the documented resolution in each mode |
-| H-K6 | Assign `MT()` home-row mods, type fast | no accidental holds within a hand; Flow Tap keeps fast typing as taps |
+| H-K6 | Assign an `MT()` key (for example `MT(MOD_LCTL, KC_A)`), tap it and hold it | tap types the letter, a hold over 200 ms is the modifier |
 
 ## Wireless
 
@@ -73,22 +69,24 @@ Rules:
 | H-B2 | Charge LED (Fn key) wired and wireless | red while charging, green when full; wired only if *Charge LED when Wired* is on |
 | H-B3 | Set *Max Brightness on Battery* to 50 % | the LEDs dim on battery, return on the cable; the brightness setting itself is unchanged |
 | H-L4 | Set *Low Battery Warning* each way (only when the battery is really low) | Fn blinks as chosen |
+| H-L5 | On the cable: *Lights Off After* = 1 min, wait without typing, then type a few letters | the LEDs go dark after about a minute; the letters are typed and the LEDs come back with the first one |
+| H-L6 | The same on battery (slider ON, Deep Sleep After = Never); then plug the charger in and unplug it while dark | dark after a minute, a key lights them; neither the plug-in nor the unplug lights them; Fn+Space still shows the charge state |
+| H-L7 | Factory defaults (after the flash): leave the keyboard alone on the cable | the LEDs go dark after about 5 minutes |
 
 ## Sleep (EXPERIMENTAL; do these last, on battery, with a plan to recover)
 
-Have the recovery steps from [recovery.md](recovery.md) at hand. If a test hangs, switch the slider OFF, unplug and wait 30 s.
+Have the recovery steps from [recovery.md](recovery.md) at hand. If a test hangs, switch the slider OFF, unplug and wait 30 s. If the keyboard ever does not wake: slider to OFF and unplug the cable (that removes all power), then set *Deep Sleep After* back to Never from VIA over the cable.
 
 | Id | Do | Expected |
 |---|---|---|
-| H-S1 | *Wireless Sleep After* = 1 min, keyboard connected | after about a minute without a key the LEDs go off and the keyboard sleeps |
+| H-S1 | First deep-sleep test: *Lights Off After* = 1 min, *Deep Sleep After* = **5 min** (check key wake and slider wake separately, H-S2 and H-S3, before leaving it on), keyboard connected | after about a minute the LEDs go off (keys still type); about 5 minutes after the last key the keyboard deep-sleeps |
 | H-S2 | Press a key | wakes; record whether the first key press reaches the host; no stuck key |
 | H-S3 | Sleep, then slider to OFF | wakes into USB mode and types on the cable |
-| H-S4 | Not connected to any host, option = 1 min | sleeps about 10-15 s after the last key |
+| H-S4 | Not connected to any host, *Deep Sleep After* = 5 min | sleeps about 15 s after the last key (stock timing while unlinked) |
 | H-S5 | 20 sleep and wake cycles | all complete; no hang |
 | H-S6 | Wake, check Bluetooth reconnect. H-S6b: the same with 2.4G, time the reconnect | reconnects; note the latency |
 | H-S7 | Leave it asleep overnight, then press a key | wakes; the battery drained only a little |
 | H-S8 | Option = Never | still awake after 35 min |
-| H-S9 | `Sleep Now` keycode (VIA custom) over wireless | sleeps after the keys are released; on the cable nothing happens |
 
 ## Lighting
 

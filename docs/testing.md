@@ -20,8 +20,7 @@ Everything, including the four builds, in parallel:
 runs the tests on images already in `OUT_DIR/fw`. Toolchain locations come from environment variables or the
 git-ignored `tools/dev/local.env`.
 
-**Expected result:** every test passes except one known line, `F2-stage1`, which compares the minimal image with a
-reference build that no longer matches on purpose. CI whitelists exactly that line. A unicorn crash (exit status 139)
+**Expected result:** every test passes. A unicorn crash (exit status 139)
 is harness noise and is rerun automatically; a FAIL line is never rerun.
 
 Memory: every emulator instance commits about 1 GiB. Run at most two to four processes at once, and do not run Python with `-I`.
@@ -37,9 +36,9 @@ Full description of the files, how to run one suite, the test ids and the conven
 | Features | Fn layer, Snap Tap and game mode, effects, factory reset |
 | VIA and storage | the definition, EEPROM layout, the deferred save and its write gate, paint Apply/Discard, a VIA stress test |
 | Wireless | radio frames, ACK and retry, channels, hybrid NKRO, system control |
-| Battery and sleep | events, gauge, indicators, critical-battery inhibit, deep sleep, countdown, low-voltage reset |
+| Battery and sleep | events, gauge, indicators, critical-battery inhibit, lights-off timeout, deep sleep, countdown, low-voltage reset |
 | Security | the Fn-gated bootloader command (SEC-1) |
-| Magic keycodes, Layer Lock, key override | the P2 and magic-keycode suites |
+| Magic keycodes | the magic-keycode suite |
 
 ## Static checks
 

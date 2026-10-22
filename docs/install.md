@@ -34,7 +34,8 @@ repository.
 2. Slider **OFF**. Data cable straight into the PC.
 3. Make a working **copy** of the image (the flasher modifies the file it is given).
 4. If you want to keep your VIA layout: in VIA, *Save + Load* and save the layout file before flashing. The
-   flash wipes the keymap, settings and colours.
+   flash wipes the keymap, settings and colours (the image file covers the settings area too), every time,
+   including the first flash of the release with the power-cut-safe saving.
 
 ## 4. Enter the ISP bootloader
 

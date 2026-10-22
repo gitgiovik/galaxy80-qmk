@@ -23,13 +23,6 @@ enum galaxy80_keycodes {
     G80_SOCD,            /* Fn+S : SOCD / snap tap on/off (last input wins on A/D, W/S, arrows) */
     G80_EDIT,            /* Fn+K : on-board per-key colour editor enter/exit (exit saves) */
     G80_GAME,            /* Fn+Pause: game mode (Win-lock + Alt+Tab/F4 block + SOCD) */
-    G80_SLEEP,           /* wireless: deep sleep now, once every key is released (no default key) */
-    G80_MCTRL,           /* Mac: Mission Control */
-    G80_LNPAD,           /* Mac: Launchpad */
-    G80_SIRI,            /* Mac: Siri = Cmd+Space held 500 ms */
-    G80_TASK,            /* Win: Task View = Win+Tab */
-    G80_FILE,            /* Win: File Explorer = Win+E */
-    G80_SNIP,            /* Win: Snip & Sketch = Win+Shift+S */
     G80_KB_SAFE_RANGE,
 };
 
@@ -111,7 +104,7 @@ extern uint8_t g80_pk[G80_PK_BYTES];
 extern bool    g80_pk_editing;
 rgb_t          g80_pk_rgb(uint8_t led, uint8_t val);
 
-/* Runtime state readable by keymaps (debug) */
+/* Slow input pins (Mac/Win switch, slider, charger) */
 typedef struct {
     bool    stable;
     bool    last;
@@ -133,18 +126,7 @@ static inline uint8_t g80_charge_state(void) { /* 0 none, 1 charging, 2 full (gr
 }
 #endif
 
-/* Layer Lock (QK_LLCK) keeps a layer on with no key held, so the bare key gives its Fn-layer keycode:
- * the hold-to-confirm actions (Fn+Backspace factory reset, Fn+Q/W/E/R pairing) are refused while any
- * layer is locked, or holding Backspace 3 s to delete text would wipe the EEPROM. */
-#ifdef LAYER_LOCK_ENABLE
-extern layer_state_t locked_layers; /* quantum/layer_lock.c */
-#    define G80_LAYER_LOCKED() (locked_layers != 0)
-#else
-#    define G80_LAYER_LOCKED() false
-#endif
-
 /* LED indices (rgb_matrix) used by the indicators */
-#define G80_LED_NUM1 18 /* key 1; 1..0 = LEDs 18..27 */
 #define G80_LED_TAB 34
 #define G80_LED_CAPS 51
 #define G80_LED_G 56
@@ -159,4 +141,3 @@ extern layer_state_t locked_layers; /* quantum/layer_lock.c */
 #define G80_LED_KEYS 88
 #define G80_LED_PAUSE 16
 #define G80_LED_S 53
-#define G80_LED_K 59

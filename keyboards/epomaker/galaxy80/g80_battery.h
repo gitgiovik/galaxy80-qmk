@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Battery state of the radio module: low / critical events, the Fn+Space gauge request, the
-// brightness cap on battery and the wired idle LED timeout. Rendering lives in g80_indicators.c and
+// brightness cap on battery and the LED-off timeout. Rendering lives in g80_indicators.c and
 // g80_bar.c; this file only holds state and timing.
 #pragma once
 
@@ -23,13 +23,9 @@
 #    define G80_GAUGE_REQ_MS 2000u
 #    define G80_GAUGE_REPLY_MS 300u
 
-/* Growing animation: one more bar LED may light every G80_GAUGE_STEP_MS from the press. */
-#    define G80_GAUGE_STEP_MS 50u
-
 /* Gauge flags passed to the renderer. */
 #    define G80_GAUGE_CHARGING 1u /* the lit LEDs breathe */
 #    define G80_GAUGE_STALE 2u    /* cached value, no answer: shown at 25 % */
-#    define G80_GAUGE_VIS_SHIFT 4 /* bits 4..6: bar LEDs the animation shows so far, 1..5 */
 
 /* Matrix position of Space (the Fn key is whatever turns layer 1 on). */
 #    define G80_GAUGE_ROW 5
@@ -37,6 +33,11 @@
 
 /* From g80_features_task() (main loop). */
 void g80_battery_task(void);
+
+/* Activity that is not a key (a VIA change, g80_via.c): restarts the LED-off timeout and lights the
+ * LEDs again. Keys (any debounced matrix change), a wired <-> wireless change and a charger edge
+ * count by themselves. */
+void g80_led_activity(void);
 
 /* Called by the radio driver for every valid module frame: 0x5B <code> (code 0x21 low, 0x22
  * critical, 0x23 normal; other codes are ignored) and 0x5C <percent>. */
@@ -58,6 +59,6 @@ extern uint8_t g80_bright_q8;
 uint8_t g80_opt_low_batt_mode(void);  /* 0 = continuous blink (stock), 1 = five blinks per 30 s */
 bool    g80_opt_charge_wired(void);   /* charge LED also while wired; default on (stock) */
 uint8_t g80_opt_batt_cap(void);       /* 0 = off, 1 / 2 / 3 = at most 75 / 50 / 25 % brightness */
-uint8_t g80_opt_wired_idle_min(void); /* wired LEDs off after this many minutes without a key; 0 = off */
+uint8_t g80_opt_led_off_min(void);    /* LEDs off after this many minutes without activity; 0 = never */
 
 #endif /* G80_FEATURES */

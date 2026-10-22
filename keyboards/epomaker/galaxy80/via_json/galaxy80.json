@@ -47,49 +47,17 @@
                   1
                 ],
                 [
-                  "Breathing",
+                  "Rainbow",
                   2
                 ],
                 [
-                  "Color Cycle",
-                  3
-                ],
-                [
-                  "Rainbow Wave",
-                  4
-                ],
-                [
-                  "Rainbow Rise",
-                  5
-                ],
-                [
-                  "Reactive",
-                  6
-                ],
-                [
-                  "Tap Off",
-                  7
-                ],
-                [
-                  "Colorful",
-                  8
-                ],
-                [
-                  "Flowing",
-                  9
-                ],
-                [
-                  "Shuttle",
-                  10
-                ],
-                [
                   "Per-key",
-                  11
+                  3
                 ]
               ]
             },
             {
-              "showIf": "{id_qmk_rgb_matrix_effect} != 0 && {id_qmk_rgb_matrix_effect} != 11",
+              "showIf": "{id_qmk_rgb_matrix_effect} == 2",
               "label": "Speed",
               "type": "range",
               "options": [
@@ -103,7 +71,7 @@
               ]
             },
             {
-              "showIf": "{id_qmk_rgb_matrix_effect} != 0 && {id_qmk_rgb_matrix_effect} != 11",
+              "showIf": "{id_qmk_rgb_matrix_effect} == 1",
               "label": "Color",
               "type": "color",
               "content": [
@@ -300,7 +268,38 @@
           "label": "Power",
           "content": [
             {
-              "label": "Wireless Sleep After",
+              "label": "Lights Off After",
+              "type": "dropdown",
+              "options": [
+                [
+                  "Never",
+                  1
+                ],
+                [
+                  "1 min",
+                  2
+                ],
+                [
+                  "5 min",
+                  0
+                ],
+                [
+                  "10 min",
+                  3
+                ],
+                [
+                  "30 min",
+                  4
+                ]
+              ],
+              "content": [
+                "id_g80_led_off",
+                0,
+                32
+              ]
+            },
+            {
+              "label": "Deep Sleep After (wireless, experimental)",
               "type": "dropdown",
               "options": [
                 [
@@ -308,20 +307,24 @@
                   0
                 ],
                 [
-                  "1 min",
+                  "5 min",
                   1
                 ],
                 [
-                  "5 min",
+                  "10 min",
                   2
                 ],
                 [
                   "30 min",
                   3
+                ],
+                [
+                  "60 min",
+                  4
                 ]
               ],
               "content": [
-                "id_g80_sleep",
+                "id_g80_deep_sleep",
                 0,
                 26
               ]
@@ -379,37 +382,6 @@
                 "id_g80_chg_wired",
                 0,
                 31
-              ]
-            },
-            {
-              "label": "Wired Idle Lights Off",
-              "type": "dropdown",
-              "options": [
-                [
-                  "Never",
-                  0
-                ],
-                [
-                  "1 min",
-                  1
-                ],
-                [
-                  "5 min",
-                  2
-                ],
-                [
-                  "10 min",
-                  3
-                ],
-                [
-                  "30 min",
-                  4
-                ]
-              ],
-              "content": [
-                "id_g80_idle_led",
-                0,
-                32
               ]
             }
           ]
@@ -697,41 +669,6 @@
       "name": "Game\nMode",
       "title": "Game mode on or off, Fn Pause",
       "shortName": "Game"
-    },
-    {
-      "name": "Sleep\nNow",
-      "title": "EXPERIMENTAL (deep sleep not yet validated on hardware): wireless deep sleep once all keys are released, any key wakes",
-      "shortName": "Sleep"
-    },
-    {
-      "name": "Mission\nControl",
-      "title": "Mac: Mission Control",
-      "shortName": "MCtrl"
-    },
-    {
-      "name": "Launch\npad",
-      "title": "Mac: Launchpad",
-      "shortName": "LPad"
-    },
-    {
-      "name": "Siri",
-      "title": "Mac: Siri, Cmd Space held for 0.5 seconds",
-      "shortName": "Siri"
-    },
-    {
-      "name": "Task\nView",
-      "title": "Windows: Task View, Win Tab",
-      "shortName": "Task"
-    },
-    {
-      "name": "File\nExplorer",
-      "title": "Windows: File Explorer, Win E",
-      "shortName": "Files"
-    },
-    {
-      "name": "Snip",
-      "title": "Windows: screen snip, Win Shift S",
-      "shortName": "Snip"
     }
   ],
   "layouts": {

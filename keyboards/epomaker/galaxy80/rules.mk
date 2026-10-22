@@ -4,16 +4,16 @@
 # Stock-equivalent matrix scan (columns driven high one at a time, rows read active-high)
 SRC += matrix.c
 
-# Own rand()/srand(): keeps newlib's rand/malloc/printf chain out of the link
-SRC += g80_rand.c
-
 # Safety: images without VIA perform NO runtime flash writes at all.
 # The VIA keymap overrides this with EEPROM_DRIVER = vendor (wear-leveling, bounded
-# to 0xF7C0..0xFFBF, see config.h).
+# to 0xF6C0..0xFFBF, see config.h).
 EEPROM_DRIVER ?= transient
 
-# Link-time guard: code must end below 0xF7C0 and the boot flag must be at 0xFFFC.
-EXTRALDFLAGS += keyboards/epomaker/galaxy80/galaxy80_guard.ld
+# Link-time guard: code must end below 0xF6C0 (wear-leveling aux sectors, then the EEPROM area at
+# 0xF7C0) and the boot flag must be at 0xFFFC. Taken from this directory, so that a build-slot copy
+# of the keyboard elsewhere in the QMK tree links its own copy.
+G80_KB_DIR := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+EXTRALDFLAGS += $(G80_KB_DIR)/galaxy80_guard.ld
 
 # Features no keymap uses.
 SPACE_CADET_ENABLE = no

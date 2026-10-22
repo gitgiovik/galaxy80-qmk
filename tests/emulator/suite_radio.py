@@ -188,8 +188,10 @@ def patch_option_stub(tmpdir):
     img = bytearray(open(BIN, 'rb').read())
     sym = Syms(NM)
     f = sym['g80_wl_nkro_enabled'] & ~1
-    stub = 0xF780
-    assert img[stub:stub + 16] == bytes(16)  # unused flash below the EEPROM band is zero-filled
+    # unused flash between the end of the code and the wear-leveling aux sectors at 0xF6C0 (zero-filled;
+    # 0xF6C0..0xFFBF is erased / programmed by the wear-leveling driver, a stub there would be wiped)
+    stub = (max(i for i in range(0xF6C0) if img[i]) + 1 + 15) & ~15
+    assert stub + 16 <= 0xF6C0 and img[stub:stub + 16] == bytes(16)
     img[stub:stub + 8] = bytes([0x01, 0xA0, 0x00, 0x78, 0x70, 0x47, 0xC0, 0x46])
     img[stub + 8] = 1
     off = stub - (f + 4)

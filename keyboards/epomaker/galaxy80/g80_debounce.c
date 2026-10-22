@@ -18,10 +18,6 @@
 #include "timer.h"
 #include "util.h"
 
-#ifndef G80_DEBOUNCE_DEFAULT
-#    define G80_DEBOUNCE_DEFAULT 5
-#endif
-
 #define G80_DEB_ELAPSED 0
 
 /* written by g80_settings.c (thread context, same thread as debounce()) */

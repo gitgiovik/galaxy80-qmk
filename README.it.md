@@ -11,10 +11,10 @@ La documentazione completa e' in inglese: [README.md](README.md) e la cartella [
 ## Stato dei test
 
 * **Provato su hardware**: USB cablato, 2.4G, Bluetooth, RGB, editor colori, barra laterale, funzioni gaming, VIA.
-* **Provato solo nell'emulatore** (novita' della 1.0.0, mai provate su una tastiera vera): sleep profondo
-  (**SPERIMENTALE**, predefinito "Never"), indicatore di batteria Fn+Space, salvataggio VIA stabile, Apply/Discard dei colori,
-  protezione SEC-1, NKRO wireless, modalita' Snap Click, tasti per macOS/Windows, Layer Lock, Shift+Backspace = Canc,
-  tasti QMK "magic". L'elenco e la lista di prove da fare: [docs/hardware-test-checklist.md](docs/hardware-test-checklist.md).
+* **Provato solo nell'emulatore** (novita' della 1.0.0, mai provate su una tastiera vera): spegnimento delle luci
+  dopo l'inattivita' (cavo e wireless, predefinito 5 min), sleep profondo wireless (**SPERIMENTALE**, predefinito "Never"),
+  indicatore di batteria Fn+Space, salvataggio VIA stabile, Apply/Discard dei colori, protezione SEC-1, NKRO wireless,
+  modalita' Snap Click, tasti QMK "magic". L'elenco e la lista di prove da fare: [docs/hardware-test-checklist.md](docs/hardware-test-checklist.md).
 
 ## E' la mia scheda?
 
@@ -56,7 +56,7 @@ Tieni premuto **Fn** (tra Alt destro e Menu):
 | Fn + | Funzione | Fn + | Funzione |
 |---|---|---|---|
 | Esc (con Shift destro) | bootloader ROM | F1..F12 | tasti multimediali |
-| Win sinistro | blocco Win | Backspace (3 s) | reset di fabbrica (non con il Layer Lock attivo) |
+| Win sinistro | blocco Win | Backspace (3 s) | reset di fabbrica |
 | Invio | effetto successivo | \ | colore successivo |
 | Su / Giu' | luminosita' | Destra / Sinistra | velocita' effetto |
 | T | luci tasti on/off | Shift destro | modalita' barra laterale |
@@ -65,10 +65,21 @@ Tieni premuto **Fn** (tra Alt destro e Menu):
 | Tab / Bloc Maiusc | blocca Alt+Tab / Alt+F4 | S | Snap Tap on/off |
 | K | editor colori per tasto | Pausa | modalita' gioco |
 | C | Caps Word | Q / W / E / R | Bluetooth 1-3 / 2.4G (cursore ON); tieni 3 s per l'accoppiamento |
-| F13 | Layer Lock (il livello Fn resta attivo; le pressioni di 3 s e Shift destro+Esc richiedono il vero Fn) | Spazio (tieni) | livello batteria sulla barra |
+| Spazio (tieni) | livello batteria sulla barra | | |
 
 Nell'editor colori: **Fn+Invio** salva (Apply), **Fn+Canc** annulla (Discard). I colori dipinti non vengono salvati finche'
 non premi Apply. Tabella completa: [docs/keys.md](docs/keys.md).
+
+**Salvataggio (immagine `via`)**: impostazioni, tasti Fn e luci vengono scritti circa 1 s dopo l'ultima modifica (il LED 5
+della barra smette di lampeggiare in magenta); i colori dipinti solo con Apply (lampeggio verde). Stacca il cavo dopo e non
+perdi niente; staccandolo prima perdi solo cio' che non era ancora salvato. Dal 2026-10-21 un'interruzione durante la pulizia
+della flash non azzera piu' tutto ([docs/stability.md](docs/stability.md#power-cuts-and-unplugging)).
+
+**Luci e sleep** (VIA, menu Power): "Lights Off After" spegne i LED dopo 1 / 5 / 10 / 30 min senza tasti (cavo e wireless,
+predefinito 5 min, oppure Never); la tastiera continua a funzionare e qualsiasi tasto, un comando VIA o il cursore wired/wireless riaccende le luci (collegare o scollegare il caricabatterie no). Con le luci spente
+anche gli indicatori (carica, batteria scarica) sono spenti. "Deep Sleep After" (solo wireless, **sperimentale**, predefinito
+Never) mette la tastiera in sleep profondo 5 / 10 / 30 / 60 min dopo l'ultimo tasto; la sveglia un tasto o il cursore.
+Effetti RGB: Solid, Rainbow, Per-key.
 
 Snap Tap e' un interruttore **manuale** (Fn+S), spento dopo un reset di fabbrica: alcuni giochi lo vietano, decidi tu per ogni gioco.
 

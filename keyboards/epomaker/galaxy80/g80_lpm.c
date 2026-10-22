@@ -1,7 +1,7 @@
 // Copyright 2026 gitgiovik
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Wireless idle countdown, deep sleep and LVD (see g80_lpm.h for the behaviour). The register
+// Wireless deep-sleep countdown, deep sleep and LVD (see g80_lpm.h for the behaviour). The register
 // sequence of the deep sleep follows the stock firmware v1.10 (sleep entry @0x0244..0x02F0, wake
 // sources @0x0A04, clock to ILRC @0x0BA0, clock back to IHRC @0x662A, LVD @0x06C4); the waits are
 // bounded here (stock waits forever) and the watchdog restarts first on wake.
@@ -19,17 +19,16 @@
 #    include "g80_radio.h"
 #    include "g80_rgb.h"
 #    include "g80_settings.h"
-#    include "eeconfig.h"
 
 /* SYS0_LVDCTRL: LVDEN | LVDRSTEN | LVDRSTLVL = 2 (reset at 2.40 V), the stock value. LVD only
  * resets, it never enters ISP: the boot and recovery paths are unchanged. */
 #    define G80_LVDCTRL_VALUE 0xC002u
 
 /* Countdown reload values, 100 ms ticks (stock @0x422C). */
-#    define G80_CD_UNLINKED 150u  /* 15 s: wireless, not linked; also 5B 33 and 5B 22 */
-#    define G80_CD_LINKED_EVT 3000u /* 5B 32 (linked) until the next key */
+#    define G80_CD_UNLINKED 150u /* 15 s: wireless, not linked; also 5B 33 and 5B 22 */
 #    define G80_CD_RETRY 10u     /* a guard failed at zero: try again in 1 s */
-static const uint16_t g80_cd_opt[4] = {0, 600, 3000, 18000};
+/* "deep sleep after" codes: never / 5 / 10 / 30 / 60 min */
+static const uint16_t g80_cd_opt[G80_DEEP_SLEEP_OPTS] = {0, 3000, 6000, 18000, 36000};
 
 /* A key held with no other key event for this long no longer keeps the keyboard awake. */
 #    ifndef G80_LPM_HELD_MS
@@ -39,11 +38,6 @@ static const uint16_t g80_cd_opt[4] = {0, 600, 3000, 18000};
 /* Upper bound of every wait for a clock; on timeout the MCU resets. At the ILRC clock (8 kHz HCLK,
  * ~7 cycles per iteration) the bound is about 57 s, at 48 MHz about 10 ms. */
 #    define G80_LPM_WAIT_MAX 0xFFFFu
-
-/* Optional extra wake source: the slider P0.7 (IRQ31). Stock never enables P0 interrupts. */
-#    ifndef G80_LPM_SLIDER_WAKE
-#        define G80_LPM_SLIDER_WAKE 1
-#    endif
 
 #    define G80_ROWS_P3 0x0FC0u        /* P3.6-11 */
 #    define G80_SLIDER_P0 (1u << 7)    /* P0.7 */
@@ -56,16 +50,15 @@ static const uint16_t g80_cd_opt[4] = {0, 600, 3000, 18000};
 enum { G80_G_OK = 0, G80_G_MODE, G80_G_USB, G80_G_KEYS, G80_G_PAIR, G80_G_FRST, G80_G_SAVE, G80_G_TX };
 
 uint16_t        g80_lpm_countdown;
-uint8_t         g80_lpm_opt;
 g80_lpm_stats_t g80_lpm_stats;
 
 static bool     g80_lpm_ready;
 static bool     g80_lpm_was_wl;
 static bool     g80_lpm_keys;     /* a key is down in the debounced matrix */
 static bool     g80_lpm_cleared;  /* held keys already released on the host */
-static bool     g80_lpm_now;      /* G80_SLEEP pressed: sleep once the keys are released */
 static uint16_t g80_lpm_tick_t;
-static uint32_t g80_lpm_key_t;    /* last key event */
+static uint32_t g80_lpm_key_t;    /* last matrix change */
+static uint32_t g80_lpm_act;      /* last_matrix_activity_time() seen */
 
 static bool g80_lpm_linked(void) {
     return g80_radio_stats.link == G80_LINK_CONNECTED;
@@ -73,20 +66,8 @@ static bool g80_lpm_linked(void) {
 
 /* Stock reload (@0x422C): not linked -> 15 s; linked -> the option time. */
 static void g80_lpm_reload(void) {
-    g80_lpm_countdown = g80_lpm_linked() ? g80_cd_opt[g80_lpm_opt & 3u] : G80_CD_UNLINKED;
-}
-
-void g80_lpm_countdown_set(uint16_t ticks) {
-    g80_lpm_countdown = ticks;
-}
-
-void g80_lpm_set_option(uint8_t opt) {
-    g80_lpm_opt = opt & 3u;
-    g80_lpm_reload();
-}
-
-uint8_t g80_lpm_option(void) {
-    return g80_lpm_opt;
+    const uint8_t opt = (uint8_t)g80_ucfg.deep_sleep;
+    g80_lpm_countdown = g80_lpm_linked() ? g80_cd_opt[opt < G80_DEEP_SLEEP_OPTS ? opt : 0] : G80_CD_UNLINKED;
 }
 
 void g80_lpm_radio_status(uint8_t code) {
@@ -94,8 +75,8 @@ void g80_lpm_radio_status(uint8_t code) {
         case 0x22: /* battery critical: sleep soon (the countdown still needs the option on) */
             g80_lpm_countdown = G80_CD_UNLINKED;
             break;
-        case 0x32: /* linked */
-            g80_lpm_countdown = G80_CD_LINKED_EVT;
+        case 0x32: /* linked (already set by the parser): the option time */
+            g80_lpm_reload();
             break;
         case 0x33: /* link lost */
             g80_lpm_countdown = G80_CD_UNLINKED;
@@ -111,22 +92,6 @@ void g80_lpm_matrix_scan(void) {
         any |= matrix_get_row(r) != 0;
     }
     g80_lpm_keys = any;
-}
-
-bool g80_lpm_process_record(uint16_t keycode, keyrecord_t *record) {
-    g80_lpm_key_t   = timer_read32();
-    g80_lpm_cleared = false;
-    g80_lpm_reload();
-    if (keycode == G80_SLEEP) {
-        if (record->event.pressed && g80_wl_active()) {
-            g80_lpm_now = true; /* sleeps once every key is released */
-        }
-        return false;
-    }
-    if (record->event.pressed) {
-        g80_lpm_now = false; /* any other key cancels "sleep now" */
-    }
-    return true;
 }
 
 /* First failed guard, or G80_G_OK. `held`: the 10-min held-key case, the matrix guard is skipped. */
@@ -203,7 +168,8 @@ static __attribute__((noinline)) void g80_lpm_sleep(void) {
     /* only the wake sources may end the WFI */
     const uint32_t iser = NVIC->ISER[0];
     NVIC->ICER[0]       = iser;
-    /* 3. wake sources: any edge on the rows P3.6-11 (stock @0x0A04), optionally the slider P0.7 */
+    /* 3. wake sources: any edge on the rows P3.6-11 (stock @0x0A04) and on the slider P0.7 (stock
+     * never enables P0 interrupts) */
     SN_GPIO3->IS  = 0;
     SN_GPIO3->IBS = G80_ROWS_P3;
     SN_GPIO3->IEV = 0;
@@ -211,14 +177,12 @@ static __attribute__((noinline)) void g80_lpm_sleep(void) {
     SN_GPIO3->IE  = G80_ROWS_P3;
     NVIC_ClearPendingIRQ(P3_IRQn);
     NVIC_EnableIRQ(P3_IRQn);
-#    if G80_LPM_SLIDER_WAKE
     SN_GPIO0->IS &= ~G80_SLIDER_P0;
     SN_GPIO0->IBS |= G80_SLIDER_P0;
     SN_GPIO0->IC = G80_SLIDER_P0;
     SN_GPIO0->IE |= G80_SLIDER_P0;
     NVIC_ClearPendingIRQ(P0_IRQn);
     NVIC_EnableIRQ(P0_IRQn);
-#    endif
     /* 4. USB PHY off, then the system clock to ILRC (stock @0x0BA0); the USB registers need their
      * AHB clock, which is off while the radio is the transport (usbStop) */
     const uint32_t ahb = SN_SYS1->AHBCLKEN;
@@ -235,10 +199,7 @@ static __attribute__((noinline)) void g80_lpm_sleep(void) {
     SN_USB->CFG       = 0;
     SN_SYS1->AHBCLKEN = ahb;
     /* 5. deep sleep, only if the wake sources read back armed (else nothing could wake us) */
-    bool armed = (NVIC->ISER[0] & (1u << P3_IRQn)) && SN_GPIO3->IE == G80_ROWS_P3;
-#    if G80_LPM_SLIDER_WAKE
-    armed = armed && (NVIC->ISER[0] & (1u << P0_IRQn)) && (SN_GPIO0->IE & G80_SLIDER_P0);
-#    endif
+    const bool armed = (NVIC->ISER[0] & (1u << P3_IRQn)) && SN_GPIO3->IE == G80_ROWS_P3 && (NVIC->ISER[0] & (1u << P0_IRQn)) && (SN_GPIO0->IE & G80_SLIDER_P0);
     if (armed) {
         SN_PMU->CTRL = 2;
         __WFI();
@@ -266,12 +227,10 @@ static __attribute__((noinline)) void g80_lpm_sleep(void) {
     SN_GPIO3->IC = 0xFFFF;
     NVIC_DisableIRQ(P3_IRQn);
     NVIC_ClearPendingIRQ(P3_IRQn);
-#    if G80_LPM_SLIDER_WAKE
     SN_GPIO0->IE &= ~G80_SLIDER_P0;
     SN_GPIO0->IC = G80_SLIDER_P0;
     NVIC_DisableIRQ(P0_IRQn);
     NVIC_ClearPendingIRQ(P0_IRQn);
-#    endif
     /* 9. stale UART input dropped before the UART interrupt is back; channel key steady for 3 s */
     g80_radio_on_wake();
     g80_ind_channel_show();
@@ -298,7 +257,6 @@ static void g80_lpm_try(bool held) {
         }
         return;
     }
-    g80_lpm_now = false;
     g80_lpm_sleep();
     g80_lpm_key_t = timer_read32();
     g80_lpm_reload();
@@ -308,27 +266,26 @@ void g80_lpm_task(void) {
     if (!g80_lpm_ready) {
         g80_lpm_ready    = true;
         SN_SYS0->LVDCTRL = G80_LVDCTRL_VALUE; /* once (stock @0x06C4) */
-        g80_user_config_t u;
-        u.raw       = eeconfig_read_user();
-        g80_lpm_opt = (uint8_t)u.sleep_opt;
+        g80_lpm_act      = last_matrix_activity_time();
+    }
+    /* any debounced matrix change (key events, and the keys the on-board editor swallows) */
+    const uint32_t act = last_matrix_activity_time();
+    if (act != g80_lpm_act) {
+        g80_lpm_act     = act;
+        g80_lpm_key_t   = timer_read32();
+        g80_lpm_cleared = false;
+        g80_lpm_reload();
     }
     const bool wl = g80_wl_active();
     if (wl != g80_lpm_was_wl) {
         g80_lpm_was_wl = wl;
-        g80_lpm_now    = false;
         g80_lpm_reload();
     }
     if (!wl || timer_elapsed(g80_lpm_tick_t) < G80_LPM_TICK_MS) {
         return;
     }
     g80_lpm_tick_t = timer_read();
-    if (g80_lpm_now) {
-        if (!g80_lpm_keys) {
-            g80_lpm_try(false);
-        }
-        return;
-    }
-    if (g80_lpm_opt == G80_SLEEP_NEVER || g80_radio_pairing()) {
+    if (g80_ucfg.deep_sleep == 0 || g80_radio_pairing()) {
         return;
     }
     if (g80_lpm_keys) {

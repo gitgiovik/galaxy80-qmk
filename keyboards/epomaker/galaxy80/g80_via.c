@@ -19,9 +19,9 @@
 #if defined(G80_FEATURES) && defined(VIA_ENABLE)
 
 #    include "g80_bar.h"
+#    include "g80_battery.h"
 #    include "g80_fn.h"
 #    include "g80_gaming.h"
-#    include "g80_lpm.h"
 #    include "g80_perkey.h"
 #    include "g80_settings.h"
 #    include "g80_test_hooks.h"
@@ -52,17 +52,9 @@ static bool g80_pk_paint_off;
 
 /* The VIA lighting menu (via_json/galaxy80.json) lists the effects by enum value: keep in sync. */
 _Static_assert(RGB_MATRIX_SOLID_COLOR == 1, "via_json effect list out of sync: SOLID_COLOR");
-_Static_assert(RGB_MATRIX_BREATHING == 2, "via_json effect list out of sync: BREATHING");
-_Static_assert(RGB_MATRIX_CYCLE_ALL == 3, "via_json effect list out of sync: CYCLE_ALL");
-_Static_assert(RGB_MATRIX_CYCLE_LEFT_RIGHT == 4, "via_json effect list out of sync: CYCLE_LEFT_RIGHT");
-_Static_assert(RGB_MATRIX_CYCLE_UP_DOWN == 5, "via_json effect list out of sync: CYCLE_UP_DOWN");
-_Static_assert(RGB_MATRIX_SOLID_REACTIVE_SIMPLE == 6, "via_json effect list out of sync: SOLID_REACTIVE_SIMPLE");
-_Static_assert(RGB_MATRIX_CUSTOM_G80_SINGLE_OFF == 7, "via_json effect list out of sync: G80_SINGLE_OFF");
-_Static_assert(RGB_MATRIX_CUSTOM_G80_COLOURFUL == 8, "via_json effect list out of sync: G80_COLOURFUL");
-_Static_assert(RGB_MATRIX_CUSTOM_G80_FLOWING == 9, "via_json effect list out of sync: G80_FLOWING");
-_Static_assert(RGB_MATRIX_CUSTOM_G80_SHUTTLE == 10, "via_json effect list out of sync: G80_SHUTTLE");
-_Static_assert(RGB_MATRIX_CUSTOM_G80_PER_KEY == 11, "via_json effect list out of sync: G80_PER_KEY (also the showIf of Speed/Color)");
-_Static_assert(RGB_MATRIX_EFFECT_MAX == 12, "via_json effect list out of sync: count");
+_Static_assert(RGB_MATRIX_CYCLE_UP_DOWN == 2, "via_json effect list out of sync: CYCLE_UP_DOWN");
+_Static_assert(RGB_MATRIX_CUSTOM_G80_PER_KEY == 3, "via_json effect list out of sync: G80_PER_KEY (also the showIf of Speed/Color: Rainbow == 2, Solid == 1)");
+_Static_assert(RGB_MATRIX_EFFECT_MAX == 4, "via_json effect list out of sync: count");
 
 /* value ids of via_json/galaxy80.json, channel 0 (id_custom_channel). Id 1 is the VIA key-painter
  * protocol (fixed by the VIA app: channel 0, id 1, [index, count, hue, sat]...). The json and the
@@ -93,13 +85,13 @@ enum g80_via_value {
     G80_VIA_GRAD_END,     /* 23 color: side-bar gradient end (bar entry 5) */
     G80_VIA_PK_APPLY,     /* 24 button: store the painted colours (Apply) */
     G80_VIA_PK_DISCARD,   /* 25 button: back to the stored colours (Discard) */
-    G80_VIA_SLEEP,        /* 26 dropdown: wireless sleep after never / 1 / 5 / 30 min */
+    G80_VIA_DEEP_SLEEP,   /* 26 dropdown: wireless deep sleep after never / 5 / 10 / 30 / 60 min */
     G80_VIA_WL_NKRO,      /* 27 toggle: hybrid NKRO over wireless */
     G80_VIA_SNAP_MODE,    /* 28 dropdown: snap click mode */
     G80_VIA_LOW_BATT,     /* 29 dropdown: low-battery warning style */
     G80_VIA_BATT_CAP,     /* 30 dropdown: brightness cap on battery */
     G80_VIA_CHG_WIRED,    /* 31 toggle: charge LED also while wired */
-    G80_VIA_IDLE_LED,     /* 32 dropdown: wired idle LED-off timeout */
+    G80_VIA_LED_OFF,      /* 32 dropdown: LEDs off after (wired and wireless) */
     G80_VIA_FW_VERSION,   /* 33 dropdown, read-only: firmware version */
     G80_VIA_PK_UNSAVED,   /* 34 dropdown, read-only: painted colours not applied yet */
 };
@@ -109,19 +101,19 @@ static const uint8_t g80_via_pair_bit[4] = {1u << 1, 1u << 0, 1u << 3, 1u << 2};
 
 /* VIA ids 26..32 -> fields of g80_ucfg (g80_settings.h): first bit, number of values, stored
  * inverted (options whose default is "on" are stored as "off" bits, so zero = defaults). A value
- * out of range selects 0 (off). */
+ * out of range selects 0 (the default). */
 static const uint8_t g80_ucfg_map[][3] = {
-    {0, 4, 0},                 /* 26 sleep_opt */
-    {4, 2, 1},                 /* 27 nkro_off */
-    {5, G80_SNAP_MODES, 0},    /* 28 snap_mode */
-    {3, 2, 0},                 /* 29 low_batt_5x */
-    {8, 4, 0},                 /* 30 batt_cap */
-    {2, 2, 1},                 /* 31 chg_wired_off */
-    {10, G80_IDLE_LED_OPTS, 0} /* 32 idle_led */
+    {13, G80_DEEP_SLEEP_OPTS, 0}, /* 26 deep_sleep */
+    {4, 2, 1},                    /* 27 nkro_off */
+    {5, G80_SNAP_MODES, 0},       /* 28 snap_mode */
+    {3, 2, 0},                    /* 29 low_batt_5x */
+    {8, 4, 0},                    /* 30 batt_cap */
+    {2, 2, 1},                    /* 31 chg_wired_off */
+    {10, G80_LED_OFF_OPTS, 0}     /* 32 led_off */
 };
 
 static void g80_via_ucfg(uint8_t id, uint8_t *v, bool set) {
-    const uint8_t *f    = g80_ucfg_map[id - G80_VIA_SLEEP];
+    const uint8_t *f    = g80_ucfg_map[id - G80_VIA_DEEP_SLEEP];
     const uint32_t mask = f[1] <= 2 ? 1u : (f[1] <= 4 ? 3u : 7u);
     if (set) {
         uint8_t x = *v < f[1] ? *v : 0;
@@ -129,9 +121,6 @@ static void g80_via_ucfg(uint8_t id, uint8_t *v, bool set) {
             x = x == 0;
         }
         g80_ucfg.raw = (g80_ucfg.raw & ~(mask << f[0])) | ((uint32_t)x << f[0]);
-        if (id == G80_VIA_SLEEP) {
-            g80_lpm_set_option(x); /* the idle countdown follows the new option at once */
-        }
     } else {
         const uint8_t x = (uint8_t)((g80_ucfg.raw >> f[0]) & mask);
         *v              = f[2] ? x == 0 : x;
@@ -247,7 +236,7 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
                 case G80_VIA_PK_DISCARD:
                     g80_pk_discard();
                     break;
-                case G80_VIA_SLEEP ... G80_VIA_IDLE_LED:
+                case G80_VIA_DEEP_SLEEP ... G80_VIA_LED_OFF:
                     g80_via_ucfg(*value_id, &value[0], true);
                     break;
                 case G80_VIA_PK_PALETTE:
@@ -259,12 +248,10 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
                     break;
                 case G80_VIA_GRAD_START:
                 case G80_VIA_GRAD_END: {
-                    const uint8_t *e  = &g80_pk[2u * (*value_id == G80_VIA_GRAD_START ? G80_LED_BAR0 : G80_LED_BAR0 + G80_LED_BAR_COUNT - 1)];
-                    uint8_t        h0 = e[0], s0 = (uint8_t)(e[1] >> 4);
+                    /* the new end colour (h0, s0) and the stored other end (h1, s1) */
                     const uint8_t *o  = &g80_pk[2u * (*value_id == G80_VIA_GRAD_START ? G80_LED_BAR0 + G80_LED_BAR_COUNT - 1 : G80_LED_BAR0)];
-                    uint8_t        h1 = o[0], s1 = (uint8_t)(o[1] >> 4);
-                    h0 = value[0];
-                    s0 = g80_s8_to_s4(value[1]);
+                    const uint8_t  h0 = value[0], s0 = g80_s8_to_s4(value[1]);
+                    const uint8_t  h1 = o[0], s1 = (uint8_t)(o[1] >> 4);
                     if (*value_id == G80_VIA_GRAD_START) {
                         g80_bar_gradient(h0, s0, h1, s1);
                     } else {
@@ -335,7 +322,7 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
                     value[0] = 0;
                     value[1] = 0;
                     break;
-                case G80_VIA_SLEEP ... G80_VIA_IDLE_LED:
+                case G80_VIA_DEEP_SLEEP ... G80_VIA_LED_OFF:
                     g80_via_ucfg(*value_id, &value[0], false);
                     break;
                 case G80_VIA_FW_VERSION:
@@ -476,6 +463,9 @@ bool g80_via_command(uint8_t *data, uint8_t length) {
         data[0] = id_unhandled;
         raw_hid_send(data, length);
         return true;
+    }
+    if (data[0] != id_get_keyboard_value) {
+        g80_led_activity(); /* any VIA command but the key tester / uptime polling lights the LEDs */
     }
     if (data[0] == id_custom_save && data[1] == id_qmk_rgb_matrix_channel) {
         g80_save_rgb = true;

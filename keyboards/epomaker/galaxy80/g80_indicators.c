@@ -52,8 +52,6 @@ static void g80_bar_overlay(uint8_t led_min, uint8_t led_max) {
     }
 }
 
-/* Per-key paint changes not applied yet: bar LED 5 blinks magenta slowly. Lowest overlay priority
- * (drawn before the status overlay, so an active layer colour replaces it). */
 /* Active channel key steady for 3 s after a switch / entering wireless / a wake-up. The radio
  * code draws the pairing and link-lost blinks and the first 3 s after a link change itself. */
 static bool     g80_chan_on, g80_chan_wl;
@@ -95,8 +93,7 @@ bool rgb_matrix_indicators_advanced_kb(uint8_t led_min, uint8_t led_max) {
     if (g80_pk_editing && g80_pk_snap == G80_SNAP_IDLE) {
         g80_pk_render(led_min, led_max);
     } else {
-        /* the Fn+Space gauge takes over the whole bar (and the number row): nothing of the bar section
-         * is drawn then */
+        /* the Fn+Space gauge takes over the whole bar: nothing of the bar section is drawn then */
         uint8_t gp, gf;
         if (g80_batt_gauge(&gp, &gf)) {
             g80_bar_gauge(led_min, led_max, gp, gf);

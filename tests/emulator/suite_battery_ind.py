@@ -1,21 +1,31 @@
 # Copyright 2026 gitgiovik
 # SPDX-License-Identifier: GPL-2.0-or-later
 """WP-C3 indicators: priorities, charge LED when wired (P1-5), channel indicator (P1-10), brightness cap on battery
-(P1-11), paint "unsaved" blink, wired idle LED timeout.
+(P1-11), paint "unsaved" blink, LED-off timeout (wired and wireless).
 usage: python suite_battery_ind.py <fw_dir>      (VIA image, simulated module)
 The option getters (g80_opt_*, g80_battery.c, noinline) read g80_ucfg; the suite patches their bodies in the emulated flash.
 T-IND-1  P1-5   charging, slider OFF: Fn key solid red (option default on); option off: not shown; back on
 T-IND-2  Fn key priority: charging red > full green > low-battery blink (a low state latched under "full" blinks after)
 T-IND-3  bar LED 5: "unsaved" magenta slow blink < layer colour < Fn+Space gauge; bar LED 1: Caps white < gauge
 T-IND-4  unsaved cleared -> LED 5 dark
-T-IND-5  wired idle LED timeout: option 0 never dark; 1 min without a key (timer jump) -> all LEDs dark, next key lights them
+T-IND-5  LED-off timeout, wired: factory option = 5 min (61 s idle: still lit); 1 min without activity (timer jump) -> all LEDs
+         dark, the next key lights them; dark again, a VIA setting change lights them; option never: lit after 61 s idle
 T-IND-6  P1-11  brightness cap on battery 50 % / 25 %: colours scaled, not while charging, user brightness untouched
 T-IND-7  P1-10  channel key: dark after the link window, steady 3 s after g80_ind_channel_show() (wake), steady after a switch
+T-IND-8  LED-off timeout, wireless: 1 min idle -> dark (no deep sleep, option never), a key lights them; a charger edge (plug in,
+         unplug) does not light them (the Fn key still shows the charge state when lit); slider to wired (mode change) lights them
 """
 import struct
 from bat_common import *
 
 LED_KEY = 45
+
+
+def via_set(m, vid, val):
+    """VIA id_custom_set_value on channel 0 through raw_hid_receive"""
+    buf = m.sym['__heap_base__']
+    m.uc.mem_write(buf, (bytes([0x07, 0, vid, val]) + b'\x00' * 32)[:32])
+    m.call('raw_hid_receive', buf, 32, max_insn=60000000)
 
 
 def best(m, mod, i, n=5):
@@ -110,17 +120,30 @@ f5 = fn_frac(m, mod, 12000, 12600, lambda c: max(c) > 20, LED_BAR0 + 4)
 check('T-IND-4', f5 <= 0.05, 'unsaved cleared: LED 5 lit %.0f%% of the samples' % (100 * f5))
 
 # ---- T-IND-5
-tjump(m, 61000)                                   # option 0: nothing may happen
+def_min = m.call('g80_opt_led_off_min') & 0xFF    # factory option (code 0)
+tjump(m, 61000)                                   # 61 s idle < 5 min: nothing may happen
 run(m, mod, 12900)
 before = best(m, mod, LED_KEY)
-patch_getter(m, 'g80_opt_wired_idle_min', 1)
+patch_getter(m, 'g80_opt_led_off_min', 1)
 run(m, mod, 13300)
 dark = sum(best(m, mod, LED_KEY))
 hold(m, 13500, 13540, Z_)
 run(m, mod, 13900)
 after = best(m, mod, LED_KEY)
-check('T-IND-5', before[2] > 200 and dark < 5 and after[2] > 200 and ok_sys(m),
-      'idle 61 s: option off -> key LED %s; option 1 min -> dark (%d); next key -> %s' % (before, dark, after))
+tjump(m, 61000)
+run(m, mod, 14300)
+dark2 = sum(best(m, mod, LED_KEY))
+via_set(m, 29, 0)                                 # a VIA change (Low Battery Warning, same value)
+run(m, mod, 14700)
+after_via = best(m, mod, LED_KEY)
+patch_getter(m, 'g80_opt_led_off_min', 0)         # never
+tjump(m, 61000)
+run(m, mod, 15100)
+never = best(m, mod, LED_KEY)
+check('T-IND-5', def_min == 5 and before[2] > 200 and dark < 5 and after[2] > 200 and dark2 < 5 and after_via[2] > 200 and never[2] > 200
+      and ok_sys(m),
+      'factory option %d min, idle 61 s -> key LED %s; option 1 min -> dark (%d); next key -> %s; dark again (%d); VIA set -> %s; '
+      'option never, idle 61 s -> %s' % (def_min, before, dark, after, dark2, after_via, never))
 wired_ok = ok_sys(m)
 
 # ================================================================== wireless
@@ -167,4 +190,48 @@ w4 = fn_frac(m, mod, 10300, 10600, lambda c: c[2] > 200, LED_Q + 2)
 check('T-IND-7', exp_ <= 0.1 and w1 >= 0.85 and w2 >= 0.85 and w3 <= 0.1 and w4 >= 0.85 and ok_sys(m) and wired_ok,
       'Q key blue: expired window %.0f%%; after g80_ind_channel_show: +0.2 s %.0f%%, +1.9 s %.0f%%, +3.4 s %.0f%% (3 s window); after Fn+E and link up, E key %.0f%%' % (
           100 * exp_, 100 * w1, 100 * w2, 100 * w3, 100 * w4))
+
+# ---- T-IND-8: LED-off timeout in wireless (green effect)
+def lit(m, mod):
+    return best(m, mod, LED_KEY)[1] > 200
+
+
+def is_dark(m, mod):
+    return sum(best(m, mod, LED_KEY)) < 5
+
+
+patch_getter(m, 'g80_opt_led_off_min', 1)
+run(m, mod, 10900)
+l0 = lit(m, mod)
+tjump(m, 61000)
+run(m, mod, 11300)
+d1 = is_dark(m, mod)
+hold(m, 11500, 11540, Z_)
+run(m, mod, 11900)
+l1 = lit(m, mod)
+tjump(m, 61000)
+run(m, mod, 12300)
+d2 = is_dark(m, mod)
+m.ext_pins[CHG] = 0                               # charger plugged in: an edge
+run(m, mod, 12900)
+l2 = is_dark(m, mod)                              # a plug-in does not relight
+hold(m, 13000, 13040, Z_)                         # a key lights them; the Fn key shows the charge state
+run(m, mod, 13200)
+fn_chg = fn_frac(m, mod, 13200, 13400, is_red)
+tjump(m, 61000)
+run(m, mod, 13600)
+d3 = is_dark(m, mod)
+m.ext_pins[CHG] = 1                               # unplugged: a falling edge, the LEDs stay dark
+run(m, mod, 14200)
+l3 = is_dark(m, mod)
+tjump(m, 61000)
+run(m, mod, 14600)
+d4 = is_dark(m, mod)
+slept = bytes(m.uc.mem_read(m.sym['g80_lpm_stats'], 2))   # g80_lpm_stats.sleeps
+m.ext_pins[SLIDER] = 0                            # slider to wired: a mode change
+run(m, mod, 15600)
+l4 = lit(m, mod)
+check('T-IND-8', l0 and d1 and l1 and d2 and l2 and fn_chg >= 0.85 and d3 and l3 and d4 and slept == b'\x00\x00' and l4 and ok_sys(m),
+      'wireless, 1 min: lit %s, idle 61 s dark %s, key -> lit %s; dark %s, charger in -> still dark %s, key -> Fn red %.0f%%, dark %s, unplugged -> still dark %s; '
+      'dark %s (deep sleeps %d), slider to wired -> lit %s' % (l0, d1, l1, d2, l2, 100 * fn_chg, d3, l3, d4, slept[0], l4))
 done()

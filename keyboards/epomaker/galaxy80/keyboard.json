@@ -53,11 +53,7 @@
     "rgb_matrix": {
         "driver": "custom",
         "animations": {
-            "breathing": true,
-            "cycle_all": true,
-            "cycle_left_right": true,
-            "cycle_up_down": true,
-            "solid_reactive_simple": true
+            "cycle_up_down": true
         },
         "default": {
             "on": true,

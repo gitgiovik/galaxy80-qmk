@@ -183,8 +183,8 @@ static void g80_save_task(void) {
 }
 
 /* Factory reset / first boot (eeconfig_init(), after eeconfig_init_via()): both settings words
- * zero (= defaults: sleep never, snap off, NKRO on, charge LED wired on, no caps) and, VIA image,
- * the per-key defaults stored with the current layout byte. */
+ * zero = defaults (LEDs off after 5 min, deep sleep never, snap off, NKRO on, charge LED wired on)
+ * and, in the VIA image, the per-key defaults stored with the current layout byte. */
 void eeconfig_init_kb(void) {
     eeconfig_update_kb(0);
     eeconfig_update_user(0);
@@ -240,8 +240,11 @@ void g80_features_init(void) {
     if (g80_ucfg.snap_mode >= G80_SNAP_MODES) {
         g80_ucfg.snap_mode = 0;
     }
-    if (g80_ucfg.idle_led >= G80_IDLE_LED_OPTS) {
-        g80_ucfg.idle_led = 0;
+    if (g80_ucfg.led_off >= G80_LED_OFF_OPTS) {
+        g80_ucfg.led_off = 0;
+    }
+    if (g80_ucfg.deep_sleep >= G80_DEEP_SLEEP_OPTS) {
+        g80_ucfg.deep_sleep = 0;
     }
     if (g80_config.bar_mode >= G80_BAR_MODES) {
         g80_config.bar_mode = G80_BAR_FOLLOW;

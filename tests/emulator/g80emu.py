@@ -25,6 +25,9 @@ from unicorn import *
 from unicorn.arm_const import *
 
 FLASH_SIZE = 0x10000
+# runtime flash writes allowed: wear-leveling aux sectors (0xF6C0..0xF7BF: scratch + state log of the
+# power-fail-safe consolidation) and the EEPROM area 0xF7C0..0xFFBF
+FLASH_RW_LO, FLASH_RW_HI = 0xF6C0, 0xFFC0
 RAM_BASE, RAM_SIZE = 0x20000000, 0x2000
 ROM_BASE, ROM_SIZE = 0x1FFF0000, 0x10000
 ISP_ENTRY = 0x1FFF0301
@@ -65,6 +68,22 @@ def pwm_pin(ch, pfpa_b):
     if pfpa_b:
         return (1, 8 + ch) if ch < 8 else (2, ch - 8)
     return (0, ch) if ch < 16 else (1, ch - 16)
+
+
+def torn_op(flash, kind, addr, words, rnd):
+    """A power cut inside one flash op (raw cells, erased = 1): a torn PROGRAM clears a random subset of
+    the 0-bits it was writing; a torn ERASE sets a random subset of the sector's bits to 1."""
+    if kind == 'ERASE':
+        page = addr & ~63
+        for o in range(page, page + 64, 4):
+            old = struct.unpack_from('<I', flash, o)[0]
+            struct.pack_into('<I', flash, o, old | rnd.getrandbits(32))
+    else:
+        for i, w in enumerate(words):
+            o = addr + 4 * i
+            old = struct.unpack_from('<I', flash, o)[0]
+            zeros = ~w & 0xFFFFFFFF & old          # bits this program would clear
+            struct.pack_into('<I', flash, o, old & ~(zeros & rnd.getrandbits(32)) & 0xFFFFFFFF)
 
 
 class Syms:
@@ -134,6 +153,7 @@ class G80:
         self.stress = stress
         self.power_cut_at = None      # index into flash_ops: that op and every later one never happen
         self.power_cut = False
+        self.power_cut_torn = None    # None, or a random.Random: the cut op is applied in part (torn_op)
         self.log = []                 # (time_ms, text) high level trace
         self.resets = []              # (time_ms, cause)
         self.isp = None               # dict when ROM ISP entry reached
@@ -291,6 +311,14 @@ class G80:
         uc.hook_add(UC_HOOK_MEM_WRITE, self.on_scs_write, begin=0xE000E000, end=0xE000EFFF)
         uc.hook_add(UC_HOOK_CODE, self.on_rom, begin=ROM_BASE, end=ROM_BASE + ROM_SIZE - 1)
         uc.hook_add(UC_HOOK_INTR, self.on_intr)
+        # flash read-back coherence: a flash write made inside a hook is deferred (stress mode / call(),
+        # see code_write); the first instruction after the FMC START inside the EFL driver ends the
+        # emulation so that the write lands before the firmware can read the cells back (the
+        # wear-leveling backend verifies its programs and scans its state log)
+        for f in ('efl_lld_program', 'efl_lld_start_erase_sector'):
+            if self.sym.get(f) is not None:
+                a, end = self.sym.range(f)
+                uc.hook_add(UC_HOOK_CODE, self.on_efl_insn, begin=a, end=end - 1)
         ml = self.sym.get('main')
         if ml is not None:
             # main loop back-edge: 'b.n protocol_pre_task' at main+0x2a (verified in disassembly)
@@ -843,11 +871,15 @@ class G80:
     def fmc_start(self, pc):
         ctrl = self.reg[FMC + 8]
         addr = self.reg[FMC + 0x10]
-        ok_range = 0xF7C0 <= addr < 0xFFC0
+        ok_range = FLASH_RW_LO <= addr < FLASH_RW_HI
         if self.power_cut_at is not None and len(self.flash_ops) >= self.power_cut_at:
             if not self.power_cut:
                 self.power_cut = True
                 self.note('POWER CUT before flash op #%d (%s %#x)' % (len(self.flash_ops), 'ERASE' if ctrl & 2 else 'PROGRAM', addr))
+                if self.power_cut_torn is not None and ctrl & 3:
+                    # torn op: the cut lands inside this erase / program (see torn_op)
+                    torn_op(self.flash, 'ERASE' if ctrl & 2 else 'PROGRAM', addr, list(self.flash_buf), self.power_cut_torn)
+                    self.note('  torn %s at %#x' % ('ERASE' if ctrl & 2 else 'PROGRAM', addr))
             self.flash_buf = []
             self.uc.emu_stop()
             return
@@ -871,7 +903,7 @@ class G80:
         if ctrl & 2:
             page = addr & ~63
             self.flash_ops.append(('ERASE', page, self.sym.at(pc), round(self.t_ms(), 3)))
-            if not (0xF7C0 <= page < 0xFFC0):
+            if not (FLASH_RW_LO <= page < FLASH_RW_HI):
                 self.violations.append('FLASH erase outside EEPROM area: %#x at %s' % (page, self.sym.at(pc)))
             if self.page_erase:
                 self.flash[page:page + 64] = b'\xff' * 64
@@ -882,7 +914,7 @@ class G80:
             end = addr + 4 * n
             if (addr & ~63) != ((end - 1) & ~63):
                 self.reg[FMC + 4] |= 4
-            if not (ok_range and end <= 0xFFC0):
+            if not (ok_range and end <= FLASH_RW_HI):
                 self.violations.append('FLASH program outside EEPROM area: %#x..%#x at %s' % (addr, end, self.sym.at(pc)))
             for i, w in enumerate(self.flash_buf):
                 o = addr + 4 * i
@@ -1116,6 +1148,15 @@ class G80:
         return self.exc_prio(num) < self.exec_prio()
 
     # ----------------------------------------------------------- helpers for tests
+    flash_sync_stop = False
+
+    def on_efl_insn(self, uc, address, size, user):
+        if (self.in_call and self.call_flash_pending) or (not self.in_call and self.emu_flash_pending):
+            self.flash_sync_stop = True
+            if not self.in_call:
+                self.efl_stopped = True
+            uc.emu_stop()
+
     def code_write(self, addr, data):
         """flash content change -> unicorn memory (deferred while call() runs, see stage-4 note)"""
         if self.in_call:
@@ -1158,7 +1199,16 @@ class G80:
         uc.reg_write(UC_ARM_REG_SP, (sp - 64) & ~7)
         uc.reg_write(UC_ARM_REG_LR, CALL_RET | 1)
         addr = self.sym[func] if isinstance(func, str) else func
-        uc.emu_start(addr | 1, CALL_RET, count=max_insn)
+        pc = addr | 1
+        while True:
+            self.flash_sync_stop = False
+            uc.emu_start(pc, CALL_RET, count=max_insn)
+            if not self.flash_sync_stop:
+                break
+            for a, d in self.call_flash_pending:     # see on_efl_insn
+                uc.mem_write(a, d)
+            self.call_flash_pending = []
+            pc = uc.reg_read(UC_ARM_REG_PC) | 1
         ret = uc.reg_read(UC_ARM_REG_R0)
         uc.mem_write(CALL_RET, old)
         uc.reg_write(UC_ARM_REG_SP, sp)

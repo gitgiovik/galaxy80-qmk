@@ -231,7 +231,7 @@ def run(ctx):
         do(m, 3400, lambda mm: (raw(mm, [0x07, 0, 24, 1]), raw(mm, [0x09, 0])))   # VIA "Apply Key Colors"
         m.run(3700)
         ops = m.flash_ops[n0:]
-        bad = [o for o in ops if not (0xF7C0 <= o[1] < 0xFFC0)]
+        bad = [o for o in ops if not (0xF6C0 <= o[1] < 0xFFC0)]
         m2 = power_cycle(m, 'via')
         m2.run(450)
         st2 = dict(mode=rgb_mode(m2), A=pk(m2, LED_A), W=pk(m2, LED_W))
@@ -241,7 +241,7 @@ def run(ctx):
               and st2['mode'] == PK and st2['A'] == (85, 15, 15) and hdist(st2['W'][0], 191) <= 3)
         check('S4-PAINT', 'VIA key painter (ch 0 id 1): with solid purple on, painting A green -> the other keys keep purple (snapshot), '
               'effect "Per tasto", A green on the LEDs; get [index, count] answers hue/sat at bytes 5..; no flash op until VIA Apply '
-              '(id 24, phase C), then only 0xF7C0..0xFFBF; after a power cycle A green, W purple, "Per tasto"', ok,
+              '(id 24, phase C), then only 0xF6C0..0xFFBF; after a power cycle A green, W purple, "Per tasto"', ok,
               'get A before=%s, after: %s, keys with purple (+-3 hue, full sat/val)=%s, get(2)=%s, frame A=%s W=%s (solid was %s), '
               'flash ops=%d early=%d outside=%d, after power cycle %s' % (
                   list(g0[5:7]), st, snap_ok, list(g1[5:9]), fa, fw, purple_frame, len(ops), len(early), len(bad), st2))
@@ -369,7 +369,7 @@ def run(ctx):
                 raw(mm, [0x07, 3, 4, k & 0xFF, 255]); raw(mm, [0x09, 3])      # colour picker drag
         m.inject = [(420, storm)]
         m.run(3300)
-        during = [o for o in m.flash_ops[n0:] if o[-1] < 420 + 2900]
+        during = [o for o in m.flash_ops[n0:] if o[-1] < 420 + 900]     # G80_SAVE_DELAY_MS = 1 s
         m.run(4200)
         after = m.flash_ops[n0:]
         val = rd(m, 'rgb_matrix_config', 4)[3]
@@ -377,9 +377,9 @@ def run(ctx):
         m2.run(450)
         v2, d2, h2 = rd(m2, 'rgb_matrix_config', 4)[3], rd(m2, 'g80_debounce_ms', 1)[0], rd(m2, 'rgb_matrix_config', 4)[1]
         check('S4-VIA-deferred', '600 VIA commands (100 x debounce slider + brightness slider + colour picker, each with its "save", channels 0 '
-              'and 3): no flash write while VIA is busy and for 2.9 s after; then one save (few ops); values persist across a power cycle',
+              'and 3): no flash write while VIA is busy and for 0.9 s after; then one save (few ops); values persist across a power cycle',
               not during and 0 < len(after) < 80 and v2 == val and d2 == 10 and h2 == 99,
-              'flash ops during+2.9 s=%d, total after=%d, brightness %d -> after power cycle %d, debounce %d, hue %d' % (len(during), len(after), val, v2, d2, h2))
+              'flash ops during+0.9 s=%d, total after=%d, brightness %d -> after power cycle %d, debounce %d, hue %d' % (len(during), len(after), val, v2, d2, h2))
 
     # ================================================================== EEPROM layout version
     if want('S4-VIA-layout'):
@@ -485,7 +485,7 @@ def run(ctx):
             m.run(tt + 50)
             hits.append(m.main_loop_hits - h0)
             tt += 50
-        during = [o for o in m.flash_ops[n0:] if o[-1] < t + 2900]
+        during = [o for o in m.flash_ops[n0:] if o[-1] < t + 900]       # G80_SAVE_DELAY_MS = 1 s
         m.inject = [(tt + 5, lambda mm: raw(mm, [0x07, 0, 16, 0]))]      # editor off (it may have been left on)
         m.run(tt + 3600)
         ops = m.flash_ops[n0:]
@@ -498,7 +498,7 @@ def run(ctx):
               and min(hits) >= 10 and 0x20000300 - lo['msp'] < 0x300 * 3 // 4 and 0x20000900 - lo['psp'] < 1536 * 3 // 4
               and (c & 15) < 13 and ((c >> 14) & 15) <= 10 and feeders <= FEEDERS_OK)
         check('S4-STRESS-via', 'stress: %d VIA packets in %.1f s (all channel-0 ids incl. painter get/set and editor switch, lighting channel, '
-              'each set followed by its save) + random keys: no flash write during the storm and 2.9 s after, then one bounded save; T reaches '
+              'each set followed by its save) + random keys: no flash write during the storm and 0.9 s after, then one bounded save; T reaches '
               'the host afterwards; no fault / reset / violation; main loop >= 10 iterations in every 50 ms (never starved); MSP / PSP use < 75 %%; '
               'settings valid; watchdog fed only from the known sites' % (cmds, (t - 420) / 1000), ok,
               'T in report=%s, editing=%d, resets=%s faults=%s, flash ops during=%d after=%d, main-loop/50 ms min=%d max=%d, MSP used %d/768 B, '
@@ -581,23 +581,25 @@ def run(ctx):
                     callers.add(cur)
         except Exception as e:
             callers = {'objdump failed: %s' % e}
-        # phase C (CR-15): also the wear-leveling consolidation loops (32 sector erases, 258 line programs)
-        check('S4-WDT-sites', 'static audit: g80_wdt_kick() is called only from g80_pk_store (bounded: index only grows, <= 94 runs), '
-              'g80_config_save_now (straight line) and the consolidation loops backing_store_erase (32 sectors) / '
-              'backing_store_write_bulk (258 lines); no loop that can spin forever contains a feed',
-              callers <= {'g80_pk_store', 'g80_config_save_now', 'backing_store_erase', 'backing_store_write_bulk'} and callers,
+        # phase C (CR-15): also the wear-leveling flash loops; since 2026-10-21 (power-fail-safe consolidation)
+        # they are g80_erase (n sectors, one feed each) and g80_prog (n lines, one feed per 16) in
+        # g80_wear_leveling.c, both bounded by their count argument
+        check('S4-WDT-sites', 'static audit: g80_wdt_kick() is called only from g80_pk_store (bounded: index only grows, <= 186 runs), '
+              'g80_config_save_now (straight line) and the wear-leveling flash loops g80_erase (n sectors) / g80_prog (n lines); '
+              'no loop that can spin forever contains a feed',
+              callers <= {'g80_pk_store', 'g80_config_save_now', 'g80_erase', 'g80_prog'} and callers,
               'callers=%s' % sorted(callers))
 
         # (b) flash controller stuck BUSY inside a deferred save, right after g80_wdt_kick: watchdog resets
         m = mkq('via')
         m.run(400)
-        m.inject = [(420, lambda mm: raw(mm, [0x07, 0, 7, 1]))]        # SOCD on -> deferred save 3 s later
+        m.inject = [(420, lambda mm: raw(mm, [0x07, 0, 7, 1]))]        # SOCD on -> deferred save 1 s later
         hung = {}
 
         def stuck(mm):
             mm.fmc_busy_stuck = True
             hung['t'] = mm.t_ms()
-        m.inject.append((3300, stuck))
+        m.inject.append((1300, stuck))                                 # before the save (due at ~1420 ms)
         r = m.run(13500)
         wr = [x for x in m.resets if x[1] == 'WDT']
         last_feed = max((f[0] * 1e3 for f in m.wdt_feeds if f[0] * 1e3 < (wr[0][0] if wr else 1e9)), default=None)
@@ -660,7 +662,7 @@ def run(ctx):
         m = mkq('via')
         m.run(400)
         mac, lay = do(m, 400, lambda mm: (mm.call('dynamic_keymap_macro_get_buffer_size'), mm.call('dynamic_keymap_get_layer_count')))
-        ok = all(v['heap'] >= 512 and int(v['code_end'], 16) < 0xF7C0 for v in res.values()) and mac >= 100 and lay == 3
+        ok = all(v['heap'] >= 512 and int(v['code_end'], 16) <= 0xF6C0 for v in res.values()) and mac >= 100 and lay == 3
         check('S4-BUDGET', 'budgets: free RAM (heap) >= 512 B in default and via; VIA: 3 dynamic layers, macro buffer >= 100 B', ok,
               '%s; VIA layers=%d macro buffer=%d B' % (res, lay, mac))
 

@@ -40,7 +40,7 @@ Every feature is marked by how far it has been checked:
 |---|---|
 | Wired USB | 6KRO/NKRO keyboard, media keys, Win/Mac switch (Mac swaps Alt and GUI like the stock firmware) |
 | 2.4G and Bluetooth | 2.4G dongle and Bluetooth 1-3: pairing, reconnect, fast typing, media keys, slider OFF returns to USB |
-| RGB | effects, brightness, speed, colour, per-key effect, 8-colour stock palette (the effect list was shortened in 1.0.0, so the effects are re-checked as H-2) |
+| RGB | effects, brightness, speed, colour, per-key effect, 8-colour stock palette (Solid, Rainbow and Per-key were hardware-tested before 1.0.0 removed the other effects; H-2 re-checks them) |
 | Side bar | 15 modes (follow keys, gradient, gradient flow, rainbow wave, colour cycle, breathing, 7 solid colours, status, off) and the status overlay (Caps, game mode, layer) |
 | Per-key colours | on-board editor (Fn+K), the VIA key painter, persistent colours |
 | Gaming | Snap Tap / SOCD (last input wins), WASD <-> arrows swap, game mode, Win lock, Alt+Tab / Alt+F4 blocking, debounce time and eager mode |
@@ -55,18 +55,15 @@ re-checked as regressions in the checklist.)
 
 | Feature | Notes |
 |---|---|
-| **Deep sleep (EXPERIMENTAL)** | Wireless idle sleep ("Wireless Sleep After", factory default **Never**) and the VIA `Sleep Now` keycode. It follows the stock firmware's register sequence and has bounded waits, but it is the riskiest code in the project: a hang while on battery lasts until the battery is empty (see [Risks](#risks)). Leave it at Never until you have run the sleep tests of the checklist. `Sleep Now` sleeps even with the option at Never |
-| Battery gauge | Fn+Space (held) shows the charge on the side bar (20 % per LED, growing animation) and on the number row (10 % per key) |
-| Battery policies | low-battery warning style, brightness cap on battery (75 / 50 / 25 %), charge LED when wired, wired idle lights-off timeout (1 / 5 / 10 / 30 min). Critical battery blocks every flash write |
-| VIA stability | no flash write inside the USB handler; keymap/macro writes are queued, settings are saved a few seconds after the last change, and every write waits until you are not typing ([docs/stability.md](docs/stability.md)) |
+| Lights off | "Lights Off After" (VIA, wired and wireless; **5 min** by default, Never / 1 / 5 / 10 / 30 min): the LEDs go dark after that long without a key or a VIA change, the keyboard keeps working, and any key lights them again. Plugging or unplugging the charger does not light them; moving the slider does |
+| **Deep sleep (EXPERIMENTAL)** | Wireless only: "Deep Sleep After" (VIA, factory default **Never**, 5 / 10 / 30 / 60 min from the last key). It follows the stock firmware's register sequence and has bounded waits, but it is the riskiest code in the project: a hang while on battery lasts until the battery is empty (see [Risks](#risks)). Leave it at Never until you have run the sleep tests of the checklist |
+| Battery gauge | Fn+Space (held) shows the charge on the side bar (20 % per LED) |
+| Battery policies | low-battery warning style, brightness cap on battery (75 / 50 / 25 %), charge LED when wired. Critical battery blocks every flash write |
+| VIA stability | no flash write inside the USB handler; keymap/macro writes are queued, settings are saved about 1 s after the last change, every write waits until you are not typing, and the log clean-up survives a power cut ([docs/stability.md](docs/stability.md)) |
 | Paint Apply / Discard | painted colours stay in RAM until you Apply (Fn+Enter in the editor, or the VIA button); Discard (Fn+Delete, or the VIA button) reloads the stored colours; a blinking side-bar LED marks unsaved paint |
 | SEC-1 | the stock updater's "enter bootloader" command is honoured only while Fn is physically held ([SECURITY.md](SECURITY.md)) |
 | Wireless NKRO | more than 6 simultaneous keys over 2.4G/Bluetooth (VIA option "Wireless NKRO", on by default), system control keys (sleep) over wireless |
 | Snap Click modes | Last, First, Second, Neutral input, per pair (A/D, W/S, Left/Right, Up/Down) |
-| OS keys | Mission Control, Launchpad, Siri, Task View, File Explorer, Snip, as VIA custom keycodes |
-| Home-row mods | Chordal Hold and Flow Tap for `MT()`/`LT()` keys assigned from VIA ("Any"); inert unless you assign such keys |
-| Layer Lock | Fn+F13 keeps the Fn layer on until Fn or F13 is pressed again. While locked, plain letter keys act as their Fn functions (toggle settings, switch channels), so typing text is not possible until it is unlocked. The hold actions (Backspace 3 s factory reset, Q/W/E/R 3 s pairing) and the bootloader key (RShift+Esc) need the real Fn key and do nothing while the layer is locked |
-| Key override | Shift+Backspace sends Delete (VIA image) |
 | QMK magic keycodes | `CL_*`, `AG_*`, `GU_*`, `NK_*`, `GE_*`, `BS_*`, `EC_*` and friends take effect at once and are saved with the settings, except `AG_*` (Alt/GUI swap): the Win/Mac switch sets that again at every boot and switch move; `OS_TOGG`/`OS_ON`/`OS_OFF` and `PDF(n)` are saved the same way; `EE_CLR` runs the factory reset on a single press, no hold (refused on a critical battery) |
 | Mouse keys, Repeat Key | assignable from VIA ("Any"); no hardware test is on record for them |
 | Brightness to off | Fn+Down steps 100 / 75 / 50 / 25 % / off, Fn+Up brings the lights back |
@@ -82,7 +79,11 @@ re-checked as regressions in the checklist.)
 * No wake-up from a charger being plugged in, and bytes arriving from the radio module during deep
   sleep are lost (both as in the stock firmware).
 * Which end of the side bar is "bottom" for the battery gauge has not been confirmed on hardware.
-* The RGB effect list is shorter than the stock firmware's (flash space).
+* Three RGB effects only (Solid, Rainbow, Per-key); the side bar has its own modes.
+* While the lights are off (Lights Off After) the indicators are dark too (charging, low battery, pairing); any key
+  shows them again.
+* A layer switched on from VIA without Fn held (`TG(1)`, `TO(1)` on the **Any** key) also turns Backspace (held 3 s)
+  into the factory reset and RShift+Esc into the bootloader key. Do not map those keycodes unless you want that.
 * Whether the host operating system shows a battery percentage for the Bluetooth keyboard is unknown.
 * Anti-cheat: some games treat SOCD cleaning and Snap Tap as cheating. Snap Tap is a **manual** switch
   (Fn+S) and is Off after a factory reset; there is no automatic game detection. Switch it off per game.
@@ -117,9 +118,13 @@ the details it asks for. After flashing this firmware the keyboard enumerates as
   for the duration and the keyboard stays unusable until the battery is empty (or you manage a real power
   cycle). It is not a brick - the bootloader and the flash are untouched - but it is a day of nuisance.
   The option is Never by default; leave it that way until you have tested it.
-* **Flash writes** happen only in the `via` image and only inside one 2 KiB band at the very end of
-  the flash (0xF7C0 to 0xFFBF), never near the code, the boot flag or the code-protection options. The
-  `default`, `debug` and `minimal` images never write flash at run time.
+* **Flash writes** happen only in the `via` image and only inside the 2.25 KiB at the very end of
+  the flash (0xF6C0 to 0xFFBF: the settings band and its 4 helper sectors), never near the code, the boot flag or
+  the code-protection options. The `default`, `debug` and `minimal` images never write flash at run time.
+* **Saving and unplugging** (`via` image): settings, Fn toggles and lighting are written about 1 s after the last change
+  (the magenta blink of side-bar LED 5 stops then); painted colours only on Apply (green flash). Unplug after that and
+  nothing is lost. Unplugging earlier loses only what was not saved yet; since 2026-10-21 a cut during the flash clean-up
+  no longer resets everything ([docs/stability.md](docs/stability.md#power-cuts-and-unplugging)).
 * **Hardware status**: the 1.0.0 additions have not been through a hardware test yet (see Features).
 * **Anti-cheat**: see the SOCD note above.
 * **Do not use the vendor updater** on this firmware ([docs/recovery.md](docs/recovery.md)).
@@ -173,7 +178,8 @@ For Linux and macOS notes see [docs/install.md](docs/install.md).
 ## First boot
 
 * The first boot after any flash starts from the **factory defaults**: default lighting, Snap Tap Off,
-  sleep Never, the default keymap, default key colours. VIA's own EEPROM magic is reset too.
+  lights off after 5 min, deep sleep Never, the default keymap, default key colours. VIA's own EEPROM magic is
+  reset too.
 * Type on every key (a key tester helps) and check Fn+F10..F12 (mute, volume).
 * Hold Fn+Esc+RShift once to see that the bootloader entry works, then replug without keys.
 * Then try the VIA image's features one by one, wired first, wireless after.
@@ -192,7 +198,7 @@ Details: [docs/via.md](docs/via.md).
    |---|---|
    | Gaming | Game Mode, Snap Tap, Snap Tap Mode (Off / Last / First / Second / Neutral), the four pairs, Win Lock, Block Alt Tab, Block Alt F4, Swap WASD and Arrows |
    | Keyboard | Debounce ms (1-10), Eager Debounce, Wireless NKRO, Firmware Version (read only) |
-   | Power | Wireless Sleep After (**Never**, 1, 5, 30 min; experimental), Low Battery Warning, Max Brightness on Battery, Charge LED when Wired, Wired Idle Lights Off |
+   | Power | Lights Off After (Never, 1, **5**, 10, 30 min), Deep Sleep After (wireless; **Never**, 5, 10, 30, 60 min; experimental), Low Battery Warning, Max Brightness on Battery, Charge LED when Wired |
    | Side Bar | Bar Mode, Gradient Start/End, Status Indicators, Key Lights Off |
    | Key Colors | Paint Color, Paint Turns Keys Off, Keyboard Editor, Editor Brush, Reset Key Colors, **Apply Key Colors**, **Discard Changes**, Unsaved Key Colors (read only) |
 
@@ -201,7 +207,7 @@ Details: [docs/via.md](docs/via.md).
    Colors** (in the editor: **Fn+Enter**) to store the colours; **Discard Changes** (**Fn+Delete**) goes back to
    the stored ones. Side-bar LED 5 blinks magenta while there is unsaved paint. A power cut or replug with
    unsaved paint loses it - that is the design.
-4. The custom keycodes (Safe Boot, Win Lock, Factory Reset, Sleep Now, OS keys, ...) are in VIA's tab for
+4. The custom keycodes (Safe Boot, Win Lock, Factory Reset, Game Mode, ...) are in VIA's tab for
    custom keycodes; any QMK keycode can be typed on the **Any** key.
 
 ## Key reference
@@ -211,7 +217,7 @@ Hold **Fn** (between Right Alt and Menu) and press:
 | Fn + | Function | Fn + | Function |
 |---|---|---|---|
 | Esc (with Right Shift held) | ROM bootloader | F1..F12 | stock media keys (My Computer, Browser home, Calculator, Mail, Media select, Stop, Previous, Play, Next, Mute, Vol -, Vol +) |
-| Left Win | Win lock (blocks both Win keys and Menu) | Backspace (hold 3 s) | factory reset (7 white flashes, then restart; not while Layer Lock is on) |
+| Left Win | Win lock (blocks both Win keys and Menu) | Backspace (hold 3 s) | factory reset (7 white flashes, then restart) |
 | Enter | next effect (Shift: previous) | \ | next palette colour |
 | Up / Down | brightness up / down (100, 75, 50, 25 %, off) | Right / Left | effect speed up / down |
 | T | key backlight off/on (indicators stay) | Right Shift | next side-bar mode |
@@ -220,7 +226,7 @@ Hold **Fn** (between Right Alt and Menu) and press:
 | Tab / Caps Lock | block Left Alt+Tab / Left Alt+F4 | S | Snap Tap on/off |
 | K | per-key colour editor on/off | Pause | game mode on/off |
 | C | Caps Word | Q / W / E / R | Bluetooth 1 / 2 / 3 / 2.4G (slider ON); hold 3 s to pair |
-| F13 | Layer Lock: the Fn layer stays on until Fn or F13 is pressed again (the 3 s holds and RShift+Esc need the real Fn) | Space (hold) | battery gauge |
+| Space (hold) | battery gauge | | |
 
 In the on-board editor every key press cycles that key through 16 presets (off, 14 hues, white); a held
 Shift goes backwards; the 1-5 keys with Fn address the five side-bar LEDs. Full list including the confirmation
@@ -240,12 +246,15 @@ Details: [docs/wireless.md](docs/wireless.md), [docs/battery-sleep.md](docs/batt
   channel key blinks fast while pairing (20 s), slowly while the link is lost (10 s), and stays lit
   for 3 s once connected. After a failed pairing remove the old bond on the host first.
 * **Fn+Space (hold)**: battery gauge. The five side-bar LEDs fill from LED 1 (20 % each, the last one shows the
-  remainder), green above 50 %, yellow 20-50 %, red below 20 %. The number row mirrors it, 10 % per key.
+  remainder), green above 50 %, yellow 20-50 %, red below 20 %.
   While charging the gauge breathes. If the module does not answer (possible while wired) the last known value is shown dimmed, and a blinking white LED 1 means the level is unknown.
 * Low battery makes the Fn key blink red (continuously, or five times per 30 s - VIA option). On a **critical**
   battery report no flash write is started and a factory reset is refused until the battery recovers
   or a charger is connected.
-* Wireless sleep: a VIA option (Never / 1 / 5 / 30 min), **experimental**, Never by default.
+* Lights off: after 5 min without a key (VIA "Lights Off After", wired and wireless) the LEDs go dark; any key
+  lights them again.
+* Deep sleep (wireless only): VIA "Deep Sleep After" (Never / 5 / 10 / 30 / 60 min from the last key),
+  **experimental**, Never by default. Any key or the slider wakes the keyboard.
 
 ## Back to stock
 
@@ -268,7 +277,7 @@ No hardware is needed. You need `bash`, `git`, Python 3.10+, the `qmk` CLI (1.2.
     tools/dev/g80_check.sh OUT_DIR # build all four images and run the whole emulator suite
 
 The build fetches the pinned SonixQMK tree (commit `62973ee48a976c6f7cc6d4f7b198bd48a2fdfe60`). The code
-must end below 0xF7C0 and the free RAM must stay at least 512 bytes; the link fails otherwise. See
+must end below 0xF6C0 and the free RAM must stay at least 512 bytes; the link fails otherwise. See
 [docs/building.md](docs/building.md) and [docs/testing.md](docs/testing.md).
 
 ## Troubleshooting
@@ -280,7 +289,8 @@ must end below 0xF7C0 and the free RAM must stay at least 512 bytes; the link fa
 | Keyboard dead after a Zadig install | wrong device chosen: Device Manager > uninstall the driver for the device and replug |
 | VIA does not connect | Chromium-based browser only; close other VIA tabs; the cable must be in and the slider OFF (VIA does not run over the radio) |
 | Not pairing | slider ON, Fn+Q/W/E/R, hold 3 s while the key blinks; remove the old pairing on the host |
-| Does not wake from sleep | press any key; if nothing happens, switch the slider OFF then ON; if still dead, unplug and wait. Then set "Wireless Sleep After" to Never and report it |
+| LEDs dark, keys still type | the lights-off timeout: press any key; change or disable it with "Lights Off After" |
+| Does not wake from sleep | press any key; if nothing happens, switch the slider OFF then ON; if still dead, unplug and wait. Then set "Deep Sleep After" to Never and report it |
 | Colours lost after a replug | they were painted but not applied: use Apply Key Colors / Fn+Enter in the editor |
 | Everything reset after a flash | expected, see First boot |
 | Build says "size" or "free RAM" failed | your change made the image too big; `check_size.py` prints the numbers |
@@ -289,7 +299,7 @@ must end below 0xF7C0 and the free RAM must stay at least 512 bytes; the link fa
 
 * [QMK Firmware](https://qmk.fm) and the [SonixQMK](https://github.com/SonixQMK/qmk_firmware) community, which
   made the SN32F2xx platform.
-* Nick Brassel (wear-leveling), Alex Ong and contributors (debounce), Keychron (Snap Click and OS key behaviour),
+* Nick Brassel (wear-leveling), Alex Ong and contributors (debounce), Keychron (Snap Click behaviour),
   see [NOTICE.md](NOTICE.md).
 * Issues and pull requests are welcome; use the issue templates. Hardware reports from other
   revisions are especially useful. Never attach or link vendor firmware.

@@ -19,7 +19,7 @@
 //      (NMI stays with ChibiOS: the ARMv6-M port uses it for context switching.)
 //   5. no code-option/CS access, never writes the 0xFFFC flag.
 //   6. VIA raw HID: the stock updater magic AA 42 89 5A FF 71 62 CC -> ISP, only while the Fn key
-//      is physically held (G80_UPDATER_MAGIC, default on; 0 removes the handler).
+//      is physically held (SEC-1).
 //
 // Pin facts:
 //   columns (strobe, driven HIGH one at a time, others LOW): P2.12..P2.0, P2.15, P1.15, P1.13, P1.12
@@ -77,12 +77,7 @@ static void g80_host_task(void);
 /* Watchdog (SN32F240B datasheet ch. 9: clock = ILRC 32 kHz, /128 fixed)      */
 /* timeout = (TC+1) * 128 * 2^PRE / 32000 s                                  */
 /* ------------------------------------------------------------------------- */
-#ifndef G80_WDT_PRE
-#    define G80_WDT_PRE 3 /* /8 -> 32 ms per count */
-#endif
-#ifndef G80_WDT_TC
-#    define G80_WDT_TC 255 /* 256 counts -> ~8.2 s nominal (~1.0 s if PRE not applied) */
-#endif
+/* G80_WDT_PRE / G80_WDT_TC: config.h */
 #define G80_WDKEY 0x5AFA0000u
 #define G80_WDT_FEED_VALUE 0x55AAu
 #define G80_WDT_AHBCLKEN (1u << 24)
@@ -370,10 +365,8 @@ void housekeeping_task_kb(void) {
 #ifdef G80_FEATURES
     g80_features_task();
     g80_host_task();
-#endif
-#ifdef G80_FEATURES
     g80_radio_task();
-    g80_lpm_task(); /* idle countdown and deep sleep, after the radio task (TX state current) */
+    g80_lpm_task(); /* deep-sleep countdown, after the radio task (TX state current) */
 #endif
     housekeeping_task_user();
 }
@@ -510,12 +503,6 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (g80_wdt_running) {
         g80_wdt_feed();
     }
-#ifdef G80_FEATURES
-    /* every key event reloads the idle countdown; G80_SLEEP is handled there */
-    if (!g80_lpm_process_record(keycode, record)) {
-        return false;
-    }
-#endif
     if (!process_record_user(keycode, record)) {
         return false;
     }
@@ -526,9 +513,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 #endif
     switch (keycode) {
         case G80_SBOOT:
-            /* Fn layer locked: Esc is G80_SBOOT and Right Shift is G80_BAR (also a Right Shift), so a
-             * plain RShift+Esc (Ctrl+Shift+Esc) would enter the ISP: needs the real Fn (it unlocks) */
-            if (record->event.pressed && !G80_LAYER_LOCKED() && (get_mods() & MOD_BIT(KC_RSFT))) {
+            if (record->event.pressed && (get_mods() & MOD_BIT(KC_RSFT))) {
                 reset_keyboard(); /* -> bootloader_jump() */
             }
             return false;
@@ -538,10 +523,6 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 }
 
 #ifdef VIA_ENABLE
-#    ifndef G80_UPDATER_MAGIC
-#        define G80_UPDATER_MAGIC 1
-#    endif
-#    if G80_UPDATER_MAGIC
 /* Stock HFD updater magic (per stock updater v1.10). Accepted only as the first
  * 8 bytes of a VIA raw HID packet; no stock command id starts with 0xAA.
  * SEC-1: any host program can send it, and the ROM ISP then accepts any firmware, so it is honoured
@@ -549,20 +530,17 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
  * keymap); otherwise the packet goes on to VIA (answered id_unhandled). The physical ISP paths
  * (Esc / P at plug-in, Fn+RShift+Esc, bootmagic) are not affected. */
 static const uint8_t g80_isp_magic[8] = {0xAA, 0x42, 0x89, 0x5A, 0xFF, 0x71, 0x62, 0xCC};
-#        define G80_FN_ROW 5
-#        define G80_FN_COL 11
-#    endif
+#    define G80_FN_ROW 5
+#    define G80_FN_COL 11
 
 bool via_command_kb(uint8_t *data, uint8_t length) {
     if (g80_wdt_running) {
         g80_wdt_feed(); /* one feed per VIA command */
     }
-#    if G80_UPDATER_MAGIC
     if (length >= sizeof(g80_isp_magic) && memcmp(data, g80_isp_magic, sizeof(g80_isp_magic)) == 0 && (matrix_get_row(G80_FN_ROW) & ((matrix_row_t)1 << G80_FN_COL))) {
         reset_keyboard();
         return true;
     }
-#    endif
 #    ifdef G80_FEATURES
     return g80_via_command(data, length); /* no flash write in the RAW HID handler (g80_via.c) */
 #    else

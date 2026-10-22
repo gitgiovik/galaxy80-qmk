@@ -25,13 +25,11 @@ extern volatile bool g80_mask_keys;
 extern volatile bool g80_overlay;
 
 /* Hardware constants (verified against the stock firmware tables in the emulator). */
-extern const uint8_t g80_led_map[G80_LED_ROWS][G80_LED_COLS]; /* LED index or G80_NO_LED */
 extern const uint8_t g80_col_chan[G80_LED_COLS];              /* CT16B1 MR channel per column */
 extern const uint8_t g80_led_pos[G80_LED_COUNT];               /* LED index -> (row << 5) | col */
 
 /* Engine control */
 void g80_engine_start(void);    /* idempotent: CT16B1 + IRQ16 on, key scan in the ISR */
-bool g80_engine_running(void);
 bool g80_engine_wait_first_pass(uint32_t timeout_ms);
 /* Copies a complete scan pass (6 rows) if one is ready; returns false otherwise. */
 bool g80_scan_take(matrix_row_t rows[MATRIX_ROWS]);
@@ -42,9 +40,6 @@ void g80_engine_stop(void);
 /* Debug keymap only: hold / restart the ISR around code that drives the columns itself. */
 void g80_engine_pause(void);
 void g80_engine_resume(void);
-
-/* true while the driver ignores rgb_matrix (a diagnostics keymap writes g80_frame directly) */
-extern volatile bool g80_manual;
 
 /* Statistics (always present, a few words of RAM) */
 extern volatile uint32_t g80_isr_steps;           /* ISR heartbeat: one per phase */

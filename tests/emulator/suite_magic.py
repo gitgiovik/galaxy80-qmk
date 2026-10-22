@@ -7,17 +7,17 @@ QMK's process_magic() reads keymap_config from EEPROM and writes it back inside 
 gate, no critical-battery inhibit); QK_CLEAR_EEPROM invalidates the EEPROM at once. The keyboard handles
 them itself:
 T-MAGIC-1  CL_TOGG and GE_SWAP set through VIA (0x05) on F13 / PrtSc: RAM keymap_config changes on the press,
-           0 flash ops and no eeconfig_read/update_keymap during the key event and the next 2.5 s, then one
-           deferred save sequence (>= 3 s after the last change, one eeconfig_update_keymap), EEPROM == RAM
+           0 flash ops and no eeconfig_read/update_keymap during the key event and the next 0.9 s, then one
+           deferred save sequence (>= 1 s after the last change, G80_SAVE_DELAY_MS, one eeconfig_update_keymap), EEPROM == RAM
 T-MAGIC-2  AG_TOGG twice (Alt/GUI swapped and back, both bits follow the left one as in QMK), EH_LEFT (split
            only): no RAM change left, the toggled-back value is not written (eeprom_update compares)
 T-MAGIC-3  critical battery (5B 22): CL_TOGG changes RAM, 0 flash ops while critical, the save is pending; EE_CLR
            is refused (red flashes, no reset, no write); after 5B 23 one save, EEPROM == RAM
 T-PDF-1    PDF(1) on F12 (layer 0) and PDF(0) on F12 of layer 1: the default layer changes on the release, 0 flash ops
-           and no eeconfig_update_default_layer during the key event and the next 2.5 s, then one deferred save;
+           and no eeconfig_update_default_layer during the key event and the next 0.85 s, then one deferred save;
            the EEPROM default layer == RAM; PDF(0) from the new default layer goes back the same way
 T-OS-1     OS_TOGG (QK_ONE_SHOT_TOGGLE) on F11: keymap_config.oneshot_enable flips on the press, 0 flash ops and no
-           eeconfig_update_keymap during the key event and the next 2.5 s, then one deferred save; EEPROM bit == RAM
+           eeconfig_update_keymap during the key event and the next 0.85 s, then one deferred save; EEPROM bit == RAM
 T-OS-2     critical battery (5B 22): OS_ON on F10 sets the bit, 0 flash ops while critical, the save is pending; after
            5B 23 one save, EEPROM bit set
 T-OS-3     OS_ON again (already on): no RAM change, nothing pending, 0 flash ops; OS_OFF on F8 clears the bit, one
@@ -121,7 +121,7 @@ tap(m, T, F13)
 tap(m, T + 200, PSCR)
 run(m, mod, T + 100)
 k1 = km(m)
-run(m, mod, T + 2700)
+run(m, mod, T + 200 + 900)
 early = m.flash_ops[ops0:]
 pend = (u8(m, 'g80_save_dirty')[0], u8(m, 'g80_save_keymap')[0])
 early_calls = (len(upd), len(rdk))
@@ -131,9 +131,9 @@ k2 = km(m)
 n_rd = len(rdk)
 ee = ee_keymap(m, mod)                       # (calls eeconfig_read_keymap itself: counted before)
 check('T-MAGIC-1', k1 == k0 ^ KM_CTRL_CAPS and k2 == k0 ^ KM_CTRL_CAPS ^ KM_GRAVE and not early and pend == (1, 1)
-      and early_calls == (0, 0) and len(grp) == 1 and grp[0][0] >= T + 200 + 3000 and len(upd) == 1 and n_rd == 0
+      and early_calls == (0, 0) and len(grp) == 1 and grp[0][0] >= T + 200 + 1000 and len(upd) == 1 and n_rd == 0
       and ee == k2 and ok_sys(m),
-      'keymap_config %04x -> CL_TOGG %04x -> GE_SWAP %04x; flash ops in the key events + 2.5 s: %d, pending (dirty, keymap) %s, '
+      'keymap_config %04x -> CL_TOGG %04x -> GE_SWAP %04x; flash ops in the key events + 0.9 s: %d, pending (dirty, keymap) %s, '
       'eeconfig update/read_keymap calls then %s; afterwards %d save sequence(s) %s (keys at %d / %d), update_keymap calls %d, '
       'read_keymap calls %d, EEPROM %s == RAM' % (
           k0, k1, k2, len(early), pend, early_calls, len(grp), [(round(a), round(b), n) for a, b, n in grp], T, T + 200,
@@ -205,14 +205,14 @@ for kc_exp in (2, 1):                        # PDF(1) from layer 0, then PDF(0) 
     dl_p = u8(m, 'default_layer_state')[0]
     run(m, mod, T5 + 150)
     dl_r = u8(m, 'default_layer_state')[0]
-    run(m, mod, T5 + 2600)
+    run(m, mod, T5 + 950)
     early = (len(m.flash_ops) - ops5, len(udl) - n_udl, u8(m, 'g80_save_deflayer')[0])
     run(m, mod, T5 + 7000)
     grp = seqs(m.flash_ops[ops5:])
     pdf.append((dl_p, dl_r, early, len(grp), grp[0][0] - T5 if grp else None, len(udl) - n_udl, ee_deflayer(m, mod), kc_exp))
-check('T-PDF-1', all(dl_r == e and dl_p != e and ea == (0, 0, 1) and ng == 1 and t0 >= 3000 and nu == 1 and ee == e
+check('T-PDF-1', all(dl_r == e and dl_p != e and ea == (0, 0, 1) and ng == 1 and t0 >= 1000 and nu == 1 and ee == e
                      for dl_p, dl_r, ea, ng, t0, nu, ee, e in pdf) and ok_sys(m),
-      'per PDF key (default layer on press, on release; key event + 2.5 s: flash ops, update_default_layer calls, pending; '
+      'per PDF key (default layer on press, on release; key event + 0.85 s: flash ops, update_default_layer calls, pending; '
       'save sequences, first at ms after the press, update calls, EEPROM default layer, expected): %s' % (pdf,))
 
 # ------------------------------------------------------------------ T-OS-1..3: one-shot keys
@@ -230,7 +230,7 @@ def os_case(key, crit=False):
     tap(m, T, key)
     run(m, mod, T + 100)
     b1 = km(m) & KM_ONESHOT
-    run(m, mod, T + (6500 if crit else 2600))
+    run(m, mod, T + (6500 if crit else 950))
     early = (len(m.flash_ops) - ops, len(upd) - n_upd, (u8(m, 'g80_save_dirty')[0], u8(m, 'g80_save_keymap')[0]))
     t_ref = T
     if crit:
@@ -244,9 +244,9 @@ def os_case(key, crit=False):
 
 
 o1 = os_case(F11)
-check('T-OS-1', o1[1] == o1[0] ^ KM_ONESHOT and o1[2] == (0, 0, (1, 1)) and o1[3] == 1 and o1[4] >= 3000 and o1[5] == 1
+check('T-OS-1', o1[1] == o1[0] ^ KM_ONESHOT and o1[2] == (0, 0, (1, 1)) and o1[3] == 1 and o1[4] >= 1000 and o1[5] == 1
       and o1[6] == o1[7] == o1[1] and ok_sys(m),
-      'OS_TOGG (bit before, after the press, key event + 2.5 s: flash ops / update_keymap calls / pending, save sequences, '
+      'OS_TOGG (bit before, after the press, key event + 0.85 s: flash ops / update_keymap calls / pending, save sequences, '
       'first at ms, update calls, EEPROM bit, RAM bit): %s' % (o1,))
 if o1[1]:                                    # make sure OS_ON has something to do
     o1b = os_case(F11)
@@ -258,7 +258,7 @@ check('T-OS-2', o2[0] == 0 and o2[1] == KM_ONESHOT and o2[2] == (0, 0, (1, 1)) a
 o3a = os_case(F10)
 o3b = os_case(F8)
 check('T-OS-3', o3a[0] == o3a[1] == KM_ONESHOT and o3a[2] == (0, 0, (0, 0)) and o3a[3] == 0 and o3a[5] == 0
-      and o3b[0] == KM_ONESHOT and o3b[1] == 0 and o3b[2] == (0, 0, (1, 1)) and o3b[3] == 1 and o3b[4] >= 3000
+      and o3b[0] == KM_ONESHOT and o3b[1] == 0 and o3b[2] == (0, 0, (1, 1)) and o3b[3] == 1 and o3b[4] >= 1000
       and o3b[5] == 1 and o3b[6] == o3b[7] == 0 and ok_sys(m),
       'OS_ON when on: %s; OS_OFF: %s' % (o3a, o3b))
 

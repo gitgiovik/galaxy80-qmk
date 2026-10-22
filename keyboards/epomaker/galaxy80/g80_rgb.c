@@ -84,26 +84,10 @@ _Static_assert(RGB_MATRIX_LED_COUNT == G80_LED_COUNT, "keyboard.json rgb_matrix 
 /* LED column (= key column) -> CT16B1 match/PWM channel (per the stock firmware v1.10). */
 const uint8_t g80_col_chan[G80_LED_COLS] = {20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 23, 7, 5, 4};
 
-/* LED row x LED column -> rgb_matrix LED index. Rows 0-5 are g_led_config.matrix_co; row 6 holds
- * the side bar at columns 12-16 (stock slots 138-142). */
-#define NO G80_NO_LED
-// clang-format off
-const uint8_t g80_led_map[G80_LED_ROWS][G80_LED_COLS] = {
-    {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16 },
-    { 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33 },
-    { 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 },
-    { 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, NO, 63, NO, NO, NO },
-    { 64, NO, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, NO, 75, NO, 76, NO },
-    { 77, 78, 79, NO, NO, NO, 80, NO, NO, NO, 81, 82, 83, 84, 85, 86, 87 },
-    { NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, 88, 89, 90, 91, 92 },
-};
-// clang-format on
-#undef NO
-
 /* Phase -> select line, decoded from the stock switches @0x4D8C / @0x4E80.
  * Encoding: bits 7..4 = port (0, 1 or 3), bits 3..0 = pin. */
 #define SEL(port, pin) (uint8_t)(((port) << 4) | (pin))
-static const uint8_t g80_phase_sel[G80_PHASES] __attribute__((unused)) = {
+static const uint8_t g80_phase_sel[G80_PHASES] = {
     /* R rows 0-6 */ SEL(0, 8), SEL(0, 11), SEL(0, 14), SEL(1, 1), SEL(1, 4), SEL(3, 3), SEL(1, 6),
     /* G rows 0-6 */ SEL(0, 10), SEL(0, 13), SEL(1, 0), SEL(1, 3), SEL(1, 8), SEL(1, 10), SEL(1, 9),
     /* B rows 0-6 */ SEL(0, 9), SEL(0, 12), SEL(0, 15), SEL(1, 2), SEL(1, 7), SEL(1, 14), SEL(1, 11),
@@ -118,7 +102,8 @@ static const pin_t g80_col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
 /* The only LED buffer: rgb_matrix writes go straight here, mapped and capped (357 B). */
 uint8_t g80_frame[G80_PHASES][G80_LED_COLS];
 
-/* rgb_matrix LED index -> (LED row << 5) | LED column: inverse of g80_led_map */
+/* rgb_matrix LED index -> (LED row << 5) | LED column. Rows 0-5 follow g_led_config.matrix_co; row 6
+ * holds the side bar at columns 12-16 (stock slots 138-142). */
 #define POS(r, c) (uint8_t)(((r) << 5) | (c))
 // clang-format off
 const uint8_t g80_led_pos[G80_LED_COUNT] = {
@@ -142,7 +127,6 @@ const uint8_t g80_led_pos[G80_LED_COUNT] = {
 volatile bool g80_mask_keys;
 volatile bool g80_overlay;
 
-volatile bool     g80_manual;
 volatile uint32_t g80_isr_steps;
 volatile uint32_t g80_scan_passes;
 volatile uint32_t g80_scan_enter_timeouts;
@@ -379,10 +363,6 @@ void g80_engine_start(void) {
     SN_CT16B1->TMRCTRL = G80_TMR_CEN; /* first phase: all MR off, ISR after 128 us */
 }
 
-bool g80_engine_running(void) {
-    return g80_running;
-}
-
 bool g80_engine_wait_first_pass(uint32_t timeout_ms) {
     const uint32_t t0 = timer_read32();
     while (!g80_scan_ready) {
@@ -500,16 +480,14 @@ static void g80_put(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
  * an effect colour is written microseconds after it (same rgb_matrix task iteration); the
  * key-backlight-off mask is applied here, so masked keys never light at all. */
 static void g80_drv_set_color(int index, uint8_t r, uint8_t g, uint8_t b) {
-    if (!g80_manual && index >= 0 && index < G80_LED_COUNT) {
+    if (index >= 0 && index < G80_LED_COUNT) {
         g80_put((uint8_t)index, r, g, b);
     }
 }
 
 static void g80_drv_set_color_all(uint8_t r, uint8_t g, uint8_t b) {
-    if (!g80_manual) {
-        for (uint8_t i = 0; i < G80_LED_COUNT; i++) {
-            g80_put(i, r, g, b);
-        }
+    for (uint8_t i = 0; i < G80_LED_COUNT; i++) {
+        g80_put(i, r, g, b);
     }
 }
 

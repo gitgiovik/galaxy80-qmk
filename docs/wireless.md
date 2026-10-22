@@ -30,7 +30,7 @@ settings (VIA image) and used at the next start.
 * The channel key's LED shows the link: **fast blink** while pairing (up to 20 s), **slow blink** while the link is
   lost or just switched (10 s), **steady for 3 s** once connected, after a channel switch and after a wake-up. If the
   pairing or reconnect window ends without a link, the keyboard goes to sleep shortly after (3 s and 0.5 s) when
-  the sleep option is on.
+  the "Deep Sleep After" option is on.
 * A key pressed while the link is down first asks the module to reconnect, then the report is sent.
 
 ## What is sent

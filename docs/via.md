@@ -27,9 +27,10 @@ in flash; a large upload (for example a full macro) can take a moment.
 
 ## Lighting menu
 
-Brightness, Effect, Speed and Colour of the main effect. The effect list: Off, Solid, Breathing, Color Cycle, Rainbow
-Wave, Rainbow Rise, Reactive, Tap Off, Colorful, Flowing, Shuttle, Per-key. Speed and colour do not apply to Per-key
-(and Off). The changes are applied at once and stored about 3 seconds after the last change.
+Brightness, Effect, Speed and Colour of the main effect. The effect list: Off, Solid, Rainbow, Per-key. Colour is shown
+for Solid only and Speed for Rainbow only (hidden for Per-key and Off). With Solid the speed only drives the animated
+side-bar modes; with Rainbow it drives both. The changes are applied at once and
+stored about 1 second after the last change.
 
 ## Galaxy80 menu
 
@@ -45,11 +46,11 @@ Wave, Rainbow Rise, Reactive, Tap Off, Colorful, Flowing, Shuttle, Per-key. Spee
 | | Eager Debounce | press accepted at once, release debounced |
 | | Wireless NKRO | more than 6 keys over the radio (on by default) |
 | | Firmware Version | read only |
-| Power | Wireless Sleep After | Never (default), 1, 5, 30 minutes. **Experimental** ([battery-sleep.md](battery-sleep.md)) |
+| Power | Lights Off After | Never, 1, 5 (default), 10, 30 minutes without a key or VIA change, wired and wireless; any key lights them again ([battery-sleep.md](battery-sleep.md)) |
+| | Deep Sleep After (wireless, experimental) | Never (default), 5, 10, 30, 60 minutes from the last key. **Experimental** ([battery-sleep.md](battery-sleep.md)) |
 | | Low Battery Warning | Fn blinks continuously, or 5 times every 30 s |
 | | Max Brightness on Battery | No limit, 75, 50, 25 percent (wireless on battery only) |
 | | Charge LED when Wired | Fn key shows charging/full while on the cable |
-| | Wired Idle Lights Off | Never, 1, 5, 10, 30 minutes without a key |
 | Side Bar | Bar Mode | the 15 modes |
 | | Gradient Start / End | colours of the Gradient and Gradient Flow modes |
 | | Status Indicators | the status overlay on the bar |
@@ -77,6 +78,6 @@ Wave, Rainbow Rise, Reactive, Tap Off, Colorful, Flowing, Shuttle, Per-key. Spee
 
 ## Settings and what survives
 
-Menu settings and the main effect are stored about 3 seconds after your last change. Keymap and macro changes
+Menu settings and the main effect are stored about 1 second after your last change. Keymap and macro changes
 are stored as VIA sends them. A flash of new firmware wipes all of it. Save a layout file from VIA's *Save + Load*
 first if you care.

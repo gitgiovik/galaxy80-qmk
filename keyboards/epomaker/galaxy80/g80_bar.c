@@ -64,9 +64,7 @@ void g80_bar_gauge(uint8_t led_min, uint8_t led_max, uint8_t pct, uint8_t flags)
             continue;
         }
         uint8_t r = 0, g = 0, b = 0;
-        if (i >= flags >> G80_GAUGE_VIS_SHIFT) {
-            /* growing animation: not reached yet, dark */
-        } else if (pct == 0 || pct == 0xFF) { /* empty: red blink (no underflow as in the stock gauge); unknown: slow white */
+        if (pct == 0 || pct == 0xFF) { /* empty: red blink (no underflow as in the stock gauge); unknown: slow white */
             if (i == 0 && (t & (pct ? 2 * G80_BAR_BLINK_MS : G80_BAR_BLINK_MS))) {
                 r = k;
                 g = b = pct ? k : 0;
@@ -78,16 +76,6 @@ void g80_bar_gauge(uint8_t led_min, uint8_t led_max, uint8_t pct, uint8_t flags)
             g               = g80_sc(cg, v);
         }
         rgb_matrix_set_color(led, r, g, b);
-    }
-    /* number-row mirror: keys 1..0 = 10 % each, key n lit while pct > 10 (n - 1), in the bar
-     * colour; it grows with the bar (two keys per bar LED) */
-    for (uint8_t i = 0; i < 10; i++) {
-        const uint8_t led = G80_LED_NUM1 + i;
-        if (led < led_min || led >= led_max) {
-            continue;
-        }
-        const uint8_t v = (pct <= 100 && i * 10 < pct && i < 2 * (flags >> G80_GAUGE_VIS_SHIFT)) ? k : 0;
-        rgb_matrix_set_color(led, g80_sc(cr, v), g80_sc(cg, v), 0); /* (g80_sc(x, 0) = 0) */
     }
 }
 

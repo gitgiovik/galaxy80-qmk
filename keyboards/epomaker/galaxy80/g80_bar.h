@@ -30,9 +30,7 @@ void g80_bar_render(uint8_t led_min, uint8_t led_max);
  * ceil(pct / 20) LEDs lit, red below 20 %, yellow below 50 %, green otherwise; the top LED is
  * dimmed to r / 20 with r = pct - 20 * (n - 1). pct 0: LED 1 blinks red. pct 0xFF (unknown): LED 1
  * blinks white, slowly. flags: G80_GAUGE_CHARGING breathes the lit LEDs, G80_GAUGE_STALE shows
- * the value at 25 %, bits G80_GAUGE_VIS_SHIFT.. = LEDs the growing animation has reached (LED 1
- * first, one more every G80_GAUGE_STEP_MS from the press). Unlit bar LEDs are drawn black. The
- * number row mirrors it: keys 1..0 = 10 % each, lit in the bar colour, the others black. */
+ * the value at 25 %. Unlit bar LEDs are drawn black. */
 void g80_bar_gauge(uint8_t led_min, uint8_t led_max, uint8_t pct, uint8_t flags);
 
 /* The 5 bar entries of the per-key table from (h0, s0) to (h1, s1); hue along the shorter way. */

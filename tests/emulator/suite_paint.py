@@ -377,7 +377,7 @@ check('T-PAINT-7', 'Apply requested (VIA id 24) while typing a key every 60 ms: 
 # ================================================================== T-VIA-ITEMS
 m = mkm(BASE)
 boot_to_loop(m, 300)
-items = {26: 'sleep', 27: 'wl_nkro', 28: 'snap_mode', 29: 'low_batt', 30: 'batt_cap', 31: 'chg_wired', 32: 'idle_led'}
+items = {26: 'deep_sleep', 27: 'wl_nkro', 28: 'snap_mode', 29: 'low_batt', 30: 'batt_cap', 31: 'chg_wired', 32: 'led_off'}
 defaults = {v: via_get(m, v) for v in items}
 exp_def = {26: 0, 27: 1, 28: 0, 29: 0, 30: 0, 31: 1, 32: 0}
 setv = {26: 2, 27: 0, 28: 3, 29: 1, 30: 2, 31: 0, 32: 4}
@@ -385,10 +385,10 @@ for v, x in setv.items():
     via(m, v, x)
 back = {v: via_get(m, v) for v in items}
 bad_in = {}
-for v, x in ((28, 9), (32, 7)):                  # out of range: off
+for v, x in ((26, 9), (28, 9), (32, 7)):         # out of range: code 0 (the default)
     via(m, v, x)
     bad_in[v] = via_get(m, v)
-for v in (28, 32):
+for v in (26, 28, 32):
     via(m, v, setv[v])
 fwv = via_get(m, 33)
 ucfg = struct.unpack('<I', rd(m, 'g80_ucfg', 4))[0]
@@ -419,11 +419,12 @@ try:
 except Exception as e:
     fw_opts = 'json error %s' % e
 ver_ok = isinstance(fw_opts, list) and len(fw_opts) == 1 and fw_opts[0][1] == fwv
-ok = defaults == exp_def and back == setv and after == setv and bad_in == {28: 0, 32: 0} and ver_ok and ucfg == 0x127E   # g80_user_config_t layout
-check('T-VIA-ITEMS', 'VIA items 26..32: factory defaults (sleep never, NKRO on, snap off, low battery stock, no cap, charge LED wired on, '
-      'wired idle off), read back what was set, out-of-range -> off, persist across a reboot (eeconfig_user); id 33 = the version in the json', ok,
-      'defaults %s, set %s -> read %s, out of range %s, after reboot %s, eeconfig_user %#x, firmware version code %s, json option %s' % (
-          defaults, setv, back, bad_in, after, ucfg, fwv, fw_opts))
+ok = defaults == exp_def and back == setv and after == setv and bad_in == {26: 0, 28: 0, 32: 0} and ver_ok and ucfg == 0x527C   # g80_user_config_t layout
+check('T-VIA-ITEMS', 'VIA items 26..32: factory defaults (deep sleep never, NKRO on, snap off, low battery stock, no cap, charge LED wired on, '
+      'LEDs off after 5 min = code 0), read back what was set, out-of-range -> code 0, persist across a reboot (eeconfig_user, deep_sleep bits '
+      '13..15, led_off bits 10..12); id 33 = the version in the json', ok,
+      'defaults %s, set %s -> read %s, out of range %s, after reboot %s, eeconfig_user %#x, '
+      'firmware version code %s, json option %s' % (defaults, setv, back, bad_in, after, ucfg, fwv, fw_opts))
 
 json.dump(results, open(os.path.join(OUT, 'suite_paint_results.json'), 'w'), indent=1, default=str)
 print('\nPAINT SUMMARY: %d PASS, %d FAIL' % (sum(r['result'] == 'PASS' for r in results), sum(r['result'] == 'FAIL' for r in results)))

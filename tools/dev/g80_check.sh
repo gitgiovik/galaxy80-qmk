@@ -73,10 +73,10 @@ rm -rf "$LOCK"; trap - EXIT
 fi
 
 {
-  echo "== sizes (code must end below 0xF7C0 = 63424 B)"
+  echo "== sizes (code must end below 0xF6C0 = 63168 B: wear-leveling aux sectors 0xF6C0, EEPROM 0xF7C0)"
   for km in via default stage1 debug; do
     e="$OUT/fw/epomaker_galaxy80_$km.elf"; [ -f "$e" ] || continue
-    "${GCC}arm-none-eabi-size" "$e" | tail -1 | awk -v k=$km '{printf "%-8s text %6d data %5d bss %5d  flash %6d  free %6d\n", k, $1, $2, $3, $1+$2, 63424-$1-$2}'
+    "${GCC}arm-none-eabi-size" "$e" | tail -1 | awk -v k=$km '{printf "%-8s text %6d data %5d bss %5d  flash %6d  free %6d\n", k, $1, $2, $3, $1+$2, 63168-$1-$2}'
     h=$(grep -E " __heap_base__| __heap_end__" "$OUT/fw/nm_$km.txt" | awk '{print $1}' | tr '\n' ' ')
     echo "         heap base/end: $h"
   done

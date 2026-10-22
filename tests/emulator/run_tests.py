@@ -28,7 +28,7 @@ results = []
 trace = []
 KBD = (os.environ.get('G80_KBD') or os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'keyboards', 'epomaker', 'galaxy80')))
 EFFECT_IDS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'via_effect_ids.json')))
-FX_SOLID, FX_UPDOWN, FX_REACT = EFFECT_IDS['SOLID_COLOR'], EFFECT_IDS['CYCLE_UP_DOWN'], EFFECT_IDS['SOLID_REACTIVE_SIMPLE']
+FX_SOLID, FX_UPDOWN = EFFECT_IDS['SOLID_COLOR'], EFFECT_IDS['CYCLE_UP_DOWN']
 
 
 def want(prefix):
@@ -160,12 +160,12 @@ if want('A'):
                 T('              -> ' + POLL_EXPLAIN[a])
         if kind == 'via':
             rng = [op[1] for op in m.flash_ops]
-            okr = all(0xF7C0 <= a < 0xFFC0 for a in rng)
-            check('A3-via', 'VIA first boot: every flash erase/program inside 0xF7C0..0xFFBF, flag page untouched',
-                  okr and m.flash[0xFFFC:0x10000] == b'\x55\x55\xaa\xaa' and m.flash[:0xF7C0] == m.img[:0xF7C0],
+            okr = all(0xF6C0 <= a < 0xFFC0 for a in rng)
+            check('A3-via', 'VIA first boot: every flash erase/program inside 0xF6C0..0xFFBF (wear-leveling aux sectors + EEPROM), flag page untouched',
+                  okr and m.flash[0xFFFC:0x10000] == b'\x55\x55\xaa\xaa' and m.flash[:0xF6C0] == m.img[:0xF6C0],
                   '%d ops, range %s..%s, flag=%s, code area unchanged=%s' % (
                       len(rng), hex(min(rng)) if rng else '-', hex(max(rng)) if rng else '-',
-                      m.flash[0xFFFC:0x10000].hex(), m.flash[:0xF7C0] == m.img[:0xF7C0]))
+                      m.flash[0xFFFC:0x10000].hex(), m.flash[:0xF6C0] == m.img[:0xF6C0]))
 
     m = None
     m = mk('via', page_erase=False)
@@ -479,24 +479,6 @@ if want('F'):
     a = mv2.sym['bootmagic_reset_eeprom'] & ~1
     check('F1-via', 'bootmagic_reset_eeprom() is "bx lr" (no flash write before the bootmagic jump)',
           w[a:a + 2] == bytes.fromhex('7047'), 'bytes @%#x = %s' % (a, w[a:a + 2].hex()))
-    s1 = open(IMG['stage1'][0], 'rb').read()
-    import hashlib
-    h = hashlib.sha256(s1).hexdigest()
-    # Stage 2c changed the USB VID:PID to 4758:0080 (VIA): the stage1 image can no longer be
-    # byte-identical to default_r3 (FEED:0800). Expectation updated: it must differ from r3 ONLY
-    # inside idVendor/idProduct of the device descriptor, and those must read 4758:0080.
-    r3p = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ref', 'epomaker_galaxy80_default_r3.bin')
-    r3 = open(r3p, 'rb').read()
-    diff = [i for i in range(len(s1)) if s1[i] != r3[i]]
-    dd = s1.find(bytes.fromhex('1201'))
-    while dd >= 0 and s1[dd + 8:dd + 12] != bytes.fromhex('58478000'):
-        dd = s1.find(bytes.fromhex('1201'), dd + 1)
-    r3h = hashlib.sha256(r3).hexdigest()
-    ok = (r3h == '2d3afda5e2cfa8c7a517bcee7f4c4430862671eae277f5e6836225c7e8e759c9' and dd >= 0 and diff
-          and all(dd + 8 <= i < dd + 12 for i in diff))
-    check('F2-stage1', 'stage1 fallback image = the stage-1 image verified on the keyboard (default_r3, SHA256 2d3afda5...) '
-          'except the USB VID:PID (now 4758:0080 in the device descriptor)', ok,
-          'sha256=%s, %d differing bytes at %s, device descriptor @%#x' % (h, len(diff), [hex(i) for i in diff[:6]], dd))
 
 # =====================================================================
 # Part 2 - E-L1 .. E-L16
@@ -541,17 +523,20 @@ if want('E-L1') or want('E-L2') or want('E-L3') or want('E-L4') or want('E-L5') 
             rr, cc = 6, 12 + bar
             bar += 1
         exp_map[rr][cc] = i
-    fw_map = [list(m.flash[m.sym['g80_led_map'] + 17 * rr: m.sym['g80_led_map'] + 17 * rr + 17]) for rr in range(7)]
     fw_chan = list(m.flash[m.sym['g80_col_chan']: m.sym['g80_col_chan'] + 17])
     fw_pos = list(m.flash[m.sym['g80_led_pos']: m.sym['g80_led_pos'] + 93])
-    pos_ok = all(fw_map[p >> 5][p & 31] == i for i, p in enumerate(fw_pos))
+    pos_ok = len(set(fw_pos)) == 93 and all((p >> 5) < 7 and (p & 31) < 17 for p in fw_pos)
+    fw_map = [[0xFF] * 17 for _ in range(7)]   # the map implied by g80_led_pos
+    for i, p in enumerate(fw_pos):
+        if pos_ok:
+            fw_map[p >> 5][p & 31] = i
     glc = m.sym['g_led_config']
     mco = [list(m.ram_read(glc + 17 * rr, 17)) for rr in range(6)]
     mco_ok = all((mco[rr][cc] if mco[rr][cc] != 0xFF else 0xFF) == exp_map[rr][cc] for rr in range(6) for cc in range(17))
     stock_slots = [21 * rr + cc for rr in range(7) for cc in range(17) if exp_map[rr][cc] != 0xFF]
     stock_ok = sorted(stock_slots) == sorted(set(stock_slots)) and set(range(138, 143)) <= set(stock_slots) and 75 not in stock_slots
-    check('E-L3a', 'LED tables in flash: g80_led_map == keyboard.json layout (+bar at LED row 6, col 12..16), g80_col_chan == stock 04-luci-led.md 1.1, '
-          'g80_led_pos inverse of the map, g_led_config.matrix_co == map rows 0-5, stock slots 21*row+col unique (138..142 = bar, 75 excluded)',
+    check('E-L3a', 'LED tables in flash: g80_led_pos (LED -> LED row/col, one slot each) == keyboard.json layout (+bar at LED row 6, col 12..16), '
+          'g80_col_chan == stock 04-luci-led.md 1.1, g_led_config.matrix_co == map rows 0-5, stock slots 21*row+col unique (138..142 = bar, 75 excluded)',
           fw_map == exp_map and fw_chan == COL_CHAN and pos_ok and mco_ok and stock_ok,
           'map ok=%s chan=%s ok=%s pos ok=%s matrix_co ok=%s stock slots ok=%s' % (fw_map == exp_map, fw_chan, fw_chan == COL_CHAN, pos_ok, mco_ok, stock_ok))
 
@@ -871,8 +856,8 @@ if want('E-L15'):
         if hold < 3000:
             check('E-L15-frst-' + label, 'Fn+Backspace held 2.5 s -> no factory reset', not m.resets and r == 'TIME', 'resets=%s' % m.resets)
         else:
-            bad_ops = [o for o in m.flash_ops if not (0xF7C0 <= o[1] < 0xFFC0)]
-            check('E-L15-frst-' + label, 'Fn+Backspace held 3.3 s (%s) -> 7 white flashes -> eeconfig_disable -> mcu_reset (LEDs off) -> clean reboot, no ISP; flash ops only in 0xF7C0..0xFFBF' % kind,
+            bad_ops = [o for o in m.flash_ops if not (0xF6C0 <= o[1] < 0xFFC0)]
+            check('E-L15-frst-' + label, 'Fn+Backspace held 3.3 s (%s) -> 7 white flashes -> eeconfig_disable -> mcu_reset (LEDs off) -> clean reboot, no ISP; flash ops only in 0xF6C0..0xFFBF' % kind,
                   rs and 4400 < rs[0][0] < 5200 and m.isp is None and m.boot_index >= 1 and not bad_ops and snap and not snap[0][2] and snap[0][3] == 0,
                   'reset at %s ms, boots=%d, ISP=%s, flash ops=%d (outside=%d), exit=%s' % (
                       rs[0][0] if rs else None, m.boot_index + 1, m.isp is not None, len(m.flash_ops), len(bad_ops), snap[:1]))
@@ -917,18 +902,18 @@ if want('E-L16'):
         sy = Syms(IMG[kind][1])
         b = open(IMG[kind][0], 'rb').read()
         elf = IMG[kind][0][:-4] + '.elf'
-        budget[kind] = dict(heap=sy['__heap_end__'] - sy['__heap_base__'], flag=b[0xFFFC:].hex(), eeprom_zero=not any(b[0xF7C0:0xFFC0]),
-                            last_code=max(i for i in range(0xF7C0) if b[i]) + 1)
-    ok = all(v['heap'] >= 512 and v['flag'] == '5555aaaa' and v['eeprom_zero'] and v['last_code'] <= 0xF7C0 for v in budget.values())
-    check('E-L16a', 'memory: code+data below 0xF7C0, EEPROM area blank in the image, flag 0xAAAA5555 at 0xFFFC, free RAM >= 512 B (all images)', ok,
+        budget[kind] = dict(heap=sy['__heap_end__'] - sy['__heap_base__'], flag=b[0xFFFC:].hex(), eeprom_zero=not any(b[0xF6C0:0xFFC0]),
+                            last_code=max(i for i in range(0xF6C0) if b[i]) + 1)
+    ok = all(v['heap'] >= 512 and v['flag'] == '5555aaaa' and v['eeprom_zero'] and v['last_code'] <= 0xF6C0 for v in budget.values())
+    check('E-L16a', 'memory: code+data below 0xF6C0, wear-leveling aux sectors + EEPROM area blank in the image, flag 0xAAAA5555 at 0xFFFC, free RAM >= 512 B (all images)', ok,
           ' '.join('%s: last code byte %#x, free RAM %d B;' % (k, v['last_code'], v['heap']) for k, v in budget.items()))
     m = None
     m = mk('default')
     m.keep_reg_writes = m.keep_col_reads = m.keep_ct1_events = False
-    def react(mm):
+    def rainbow(mm):
         mm.call('rgb_matrix_enable_noeeprom')
-        mm.call('rgb_matrix_mode_eeprom_helper', FX_REACT, 0)
-    m.inject = [(250, react)]
+        mm.call('rgb_matrix_mode_eeprom_helper', FX_UPDOWN, 0)
+    m.inject = [(250, rainbow)]
     m.schedule = [(300 + 37 * k, 300 + 37 * k + 25, (k % 6, (k * 7) % 17)) for k in range(70)]
     m.run(3000)
     def free_words(lo, hi):
@@ -942,7 +927,7 @@ if want('E-L16'):
     msb, mse = m.sym['__main_stack_base__'], m.sym['__main_stack_end__']
     psb, pse = m.sym['__process_stack_base__'], m.sym['__process_stack_end__']
     fm, fp = free_words(msb, mse), free_words(psb, pse)
-    check('E-L16b', 'stack painting after 3 s with a reactive effect and 70 key presses: >= 256 B never touched in both stacks',
+    check('E-L16b', 'stack painting after 3 s with the rainbow effect and 70 key presses: >= 256 B never touched in both stacks',
           fm >= 256 and fp >= 256 and not m.resets and not m.faults,
           'main stack (exceptions, %d B): %d B untouched; process stack (main thread, %d B): %d B untouched' % (mse - msb, fm, pse - psb, fp))
 

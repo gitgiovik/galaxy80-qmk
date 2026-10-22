@@ -4,9 +4,9 @@
 of emu_lpm.py and a simulated radio module (ACKs every frame, can send its own frames).
 usage: python suite_sleep.py <fw_dir>
 
-T-SLEEP-1   countdown values per event (key unlinked 150, linked 600/3000/18000 by option, 5B 32 3000,
-            5B 33 150, 5B 22 150), 1 tick per 100 ms, frozen with option "never", while pairing and
-            while a key is held; factory default option = never
+T-SLEEP-1   countdown values per event (key unlinked 150, linked 3000/6000/18000/36000 by option = 5/10/30/60 min,
+            5B 32 = the option time, 5B 33 150, 5B 22 150), 1 tick per 100 ms, frozen with option "never", while
+            pairing and while a key is held; factory default option = never
 T-SLEEP-2   each guard blocks sleep at zero (USB not stopped, save pending, TX busy, pairing) and sleep
             follows once it clears (factory-reset guard: not injectable, the flag starts the reset) and sleep follows once it clears; a charging cable does not block
 T-SLEEP-CR6 critical battery (5B 22) + pending save: sleeps anyway, the save stays in RAM (no flash op, also after the wake) until 5B 23
@@ -27,8 +27,6 @@ T-SLEEP-10  a pending deferred save is written before the sleep, never during it
 T-SLEEP-11  wake sources do not read back armed (P3 IE stuck at 0): no WFI, abort counted, clocks
             restored, keys still work
 T-SLEEP-12  key held, no key event for 10 min: empty report, sleep; release wakes, nothing stuck
-T-SLEEP-NOW G80_SLEEP (assigned from VIA): wireless -> sleeps once released even with option never;
-            wired -> nothing
 T-SLEEP-ISP Fn+RShift+Esc after a wake still enters the ROM ISP (watchdog off)
 T-LVD       SYS0_LVDCTRL written exactly once with 0xC002 (via, default); never in the minimal image
 T-SLEEP-PAIR P0-5: pairing (5B 31) freezes the countdown inside the 20 s window; at its end the countdown is set
@@ -37,6 +35,10 @@ T-SLEEP-PAIR P0-5: pairing (5B 31) freezes the countdown inside the 20 s window;
 T-SLEEP-VEC wake vectors 0xB0 (P3, IRQ28) / 0xBC (P0, IRQ31) point to a real handler, not _unhandled_exception;
             both IRQs taken while awake (a slip that left them enabled): sources disarmed, no fault / ISP /
             reset, keys still work
+T-SLEEP-ACT a key the on-board editor swallows (no key event) still reloads the countdown (matrix activity)
+T-SLEEP-LED LEDs off after 1 min, deep sleep after 5 min (wireless): after 61 s idle the LEDs are dark (rgb_matrix
+            suspended, frame black) and the keyboard is awake with the countdown still running; at the end of the
+            countdown it deep-sleeps, the wake key goes out, the LEDs come back and the countdown is reloaded
 """
 import sys, os, struct, gc, bisect
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,13 +46,12 @@ from g80emu import *
 from emu_lpm import G80Lpm, PMU_CTRL, P0, P3
 
 FW = sys.argv[1]
-FN, A_, S_, ESC, RSFT, F13, BKSP = (5, 11), (3, 1), (3, 2), (0, 0), (4, 13), (0, 13), (1, 13)
+FN, A_, S_, K_, ESC, RSFT = (5, 11), (3, 1), (3, 2), (3, 8), (0, 0), (4, 13)
 USB_STOP = 1
 LINK_OFF = 30            # g80_radio_stats.link (7 x uint32 + battery + host_leds)
 PRESS_A = (0xA1, 0, 0, 0x04, 0, 0, 0, 0, 0, 0xA5)
 EMPTY = (0xA1, 0, 0, 0, 0, 0, 0, 0, 0, 0xA1)
 WAKE_CMD = (0xA6, 0x00, 0xA6)
-G80_SLEEP_KC = 0x7E0E    # QK_KB_0 + 14 (galaxy80.h enum order)
 WAIT_MAX = 0xFFFF
 results = []
 
@@ -125,8 +126,25 @@ def set_cd(m, v):
     wr(m, 'g80_lpm_countdown', struct.pack('<H', v))
 
 
+def get_opt(m):
+    return (struct.unpack('<I', rd(m, 'g80_ucfg', 4))[0] >> 13) & 7     # g80_ucfg.deep_sleep, bits 13..15
+
+
 def set_opt(m, v):
-    wr(m, 'g80_lpm_opt', [v])
+    u = struct.unpack('<I', rd(m, 'g80_ucfg', 4))[0]
+    wr(m, 'g80_ucfg', struct.pack('<I', (u & ~(7 << 13)) | (v << 13)))
+
+
+def tjump(m, ms):
+    """timer_read32() jumps forward by ms (chibios ms_offset); below 65 s so that 16-bit timers cannot wrap"""
+    a = m.sym['ms_offset']
+    m.uc.mem_write(a, struct.pack('<I', (struct.unpack('<I', bytes(m.uc.mem_read(a, 4)))[0] + ms) & 0xFFFFFFFF))
+
+
+def patch_getter(m, name, value):
+    """option getter (g80_battery.c, noinline) replaced by movs r0,#value / bx lr"""
+    m.uc.mem_write(m.sym[name] & ~1, bytes([value & 0xFF, 0x20, 0x70, 0x47]))
+    m.uc.ctl_flush_tb()
 
 
 def stats(m):
@@ -191,12 +209,12 @@ def collect(m, mod):
 # ======================================================================== E1: main wireless engine
 m = None
 m, mod = boot_linked(opt=None)
-opt0 = rd(m, 'g80_lpm_opt', 1)[0]
+opt0 = get_opt(m)
 vals = {}
 tap(m, 1700, A_)
 m.run(1790)
 vals['opt0'] = cd(m)
-for o, exp in ((1, 600), (2, 3000), (3, 18000)):
+for o, exp in ((1, 3000), (2, 6000), (3, 18000), (4, 36000)):
     set_opt(m, o)
     t = m.t_ms() + 20
     tap(m, t, A_)
@@ -214,9 +232,11 @@ t = m.t_ms() + 10
 tap(m, t, A_)
 m.run(t + 75)
 vals['key_unlinked'] = cd(m)
+set_opt(m, 3)
 mod.send(m.t_ms(), (0x5B, 0x32, 0x8D))
 m.run(m.t_ms() + 20)
-vals['5B32'] = cd(m)
+vals['5B32'] = cd(m)                         # the option time (30 min), not a fixed 5 min
+set_opt(m, 1)
 mod.send(m.t_ms(), (0x5B, 0x22, 0x7D))
 m.run(m.t_ms() + 20)
 vals['5B22'] = cd(m)
@@ -237,9 +257,9 @@ m.schedule.append((t, t + 1300, A_))
 m.run(t + 200)
 c1 = cd(m); m.run(t + 1200); fr_held = c1 - cd(m)
 m.run(t + 1400)
-ok = (opt0 == 0 and vals['opt0'] == 0 and abs(vals['opt1'] - 600) <= 1 and abs(vals['opt2'] - 3000) <= 1
-      and abs(vals['opt3'] - 18000) <= 1 and 19 <= rate <= 21 and vals['5B33'] == 150 and abs(vals['key_unlinked'] - 150) <= 1
-      and vals['5B32'] == 3000 and 149 <= vals['5B22'] <= 150 and fr_never == 0 and fr_pair == 0 and fr_held == 0 and not m.sleeps)
+ok = (opt0 == 0 and vals['opt0'] == 0 and abs(vals['opt1'] - 3000) <= 1 and abs(vals['opt2'] - 6000) <= 1
+      and abs(vals['opt3'] - 18000) <= 1 and abs(vals['opt4'] - 36000) <= 1 and 19 <= rate <= 21 and vals['5B33'] == 150
+      and abs(vals['key_unlinked'] - 150) <= 1 and abs(vals['5B32'] - 18000) <= 1 and 149 <= vals['5B22'] <= 150 and fr_never == 0 and fr_pair == 0 and fr_held == 0 and not m.sleeps)
 check('T-SLEEP-1', ok, 'factory option=%d, values %s, ticks in 2 s=%d, frozen never/pairing/held=%d/%d/%d, sleeps=%d' % (
     opt0, vals, rate, fr_never, fr_pair, fr_held, len(m.sleeps)))
 
@@ -383,14 +403,14 @@ m.ext_pins[(3, 5)] = 0     # charging (P3.5 low): must not block
 guard_case('charging', lambda: None, lambda: None, expect_block=False)
 m.ext_pins.pop((3, 5))
 m.run(m.t_ms() + 100)
-# deferred save pending (Fn+S = SOCD toggle, written 3 s later): sleep waits for it (T-SLEEP-10)
+# deferred save pending (Fn+S = SOCD toggle, written 1 s later, G80_SAVE_DELAY_MS): sleep waits for it (T-SLEEP-10)
 n_ops = len(m.flash_ops)
 n_sl = len(m.sleeps)
 t = m.t_ms() + 10
 fn(m, t, S_)
 m.run(t + 150)
 set_cd(m, 3)
-m.run(t + 1500)
+m.run(t + 900)                 # countdown expired, the save (due >= t + 1015 ms) still pending
 blocked_save = len(slept(m, n_sl)) == 0 and stats(m)['guard'] == 6
 m.run(t + 4800)
 sl = slept(m, n_sl)
@@ -552,30 +572,6 @@ check('T-SLEEP-11', st['aborts'] >= 1 and st['sleeps'] == 0 and not slept(m, 0) 
       'stats %s, WFI sleeps %d, HCLK %.0f MHz, WDT %s, A1 %s' % (st, len(slept(m, 0)), m.hclk() / 1e6, m.wdt['en'], f))
 collect(m, mod)
 
-# ======================================================================== E7: G80_SLEEP from VIA
-m = None
-m, mod = mk(slider=False, stress=True)
-m.run(1500)
-m.hid_send([0x05, 1, F13[0], F13[1], G80_SLEEP_KC >> 8, G80_SLEEP_KC & 0xFF])
-m.run(1700)
-fn(m, 1800, F13)
-m.run(2300)
-wired_none = not slept(m, 0)
-m.ext_pins[(0, 7)] = 1
-m.run(3300)
-mod.send(3300, (0x5B, 0x32, 0x8D))
-m.run(3400)
-opt = rd(m, 'g80_lpm_opt', 1)[0]
-m.schedule += [(3500, 3900, FN), (3510, 3700, F13)]
-m.run(3850)
-early = len(slept(m, 0))
-m.run(4300)
-sl = slept(m, 0)
-check('T-SLEEP-NOW', wired_none and opt == 0 and early == 0 and len(sl) == 1 and 3900 <= sl[0]['t'] <= 4150,
-      'wired: no sleep=%s; wireless, option=%d: no sleep while Fn held=%s, slept at %s ms (Fn released at 3900)' % (
-          wired_none, opt, early == 0, [s['t'] for s in sl]))
-collect(m, mod)
-
 # ======================================================================== E8: LVD
 lvd = {}
 for kind in ('via', 'default', 'stage1'):
@@ -677,6 +673,46 @@ check('T-SLEEP-VEC', tbl_ok and taken == (1, 1) and disarmed and f.count(PRESS_A
       'vectors 0xB0 %#x 0xBC %#x (_unhandled_exception %#x); taken while awake %s, disarmed %s (P3 IE %#x, P0 IE %#x, ISER %#x), '
       'A1 after %s, ISP %s faults %s resets %s' % (v28, v31, unh, taken, disarmed, m.reg[P3 + 0x18], m.reg[P0 + 0x18], m.nvic_iser,
                                                   f, m.isp is not None, m.faults[:1], m.resets))
+collect(m, mod)
+
+# ======================================================================== E10: editor keys, LED off then deep sleep
+m = None
+m, mod = boot_linked(opt=1)                  # deep sleep after 5 min
+patch_getter(m, 'g80_opt_led_off_min', 1)    # LEDs off after 1 min
+fn(m, 1700, K_)                              # Fn+K: on-board editor on
+m.run(1950)
+ed_on = rd(m, 'g80_pk_editing', 1)[0]
+set_cd(m, 500)
+tap(m, 2000, A_)                             # taken by the editor: no key event, no A1
+m.run(2150)
+cd_ed = cd(m)
+a1_ed = frames(mod, 1990, 2150, 0xA1)
+fn(m, 2300, K_)                              # editor off
+m.run(2550)
+check('T-SLEEP-ACT', ed_on == 1 and abs(cd_ed - 3000) <= 2 and PRESS_A not in a1_ed and rd(m, 'g80_pk_editing', 1)[0] == 0,
+      'editor on=%d, countdown 500 -> %d after a swallowed key (A1 frames %s)' % (ed_on, cd_ed, a1_ed))
+
+tap(m, 2600, A_)
+m.run(2800)
+n_sl = len(m.sleeps)
+tjump(m, 61000)                              # 61 s without activity
+m.run(3200)
+dark = (m.call('rgb_matrix_get_suspend_state') & 1) == 1 and not any(rd(m, 'g80_frame', 21 * 17))
+cd_dark = cd(m)
+awake_dark = not slept(m, n_sl)
+set_cd(m, 3)                                 # the rest of the 5 min
+m.run(3800)
+sl = slept(m, n_sl)
+t_w = m.t_ms() + 20
+wake_with_a(m, t_w)
+m.run(t_w + 400)
+lit = (m.call('rgb_matrix_get_suspend_state') & 1) == 0 and any(rd(m, 'g80_frame', 21 * 17))
+f = frames(mod, t_w - 1, t_w + 400, 0xA1)
+cd_after = cd(m)
+check('T-SLEEP-LED', dark and awake_dark and 2900 <= cd_dark <= 3000 and len(sl) == 1 and sl[0]['cause'] == 'IRQ28' and lit
+      and f.count(PRESS_A) == 1 and 2990 <= cd_after <= 3000 and not m.faults and not m.resets,
+      'idle 61 s: LEDs dark=%s, awake=%s, countdown %d; deep sleeps %d (cause %s); after the wake key: LEDs lit=%s, A1 %s, countdown %d' % (
+          dark, awake_dark, cd_dark, len(sl), sl[0]['cause'] if sl else None, lit, f, cd_after))
 collect(m, mod)
 
 # ======================================================================== whole run

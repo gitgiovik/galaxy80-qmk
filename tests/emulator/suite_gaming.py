@@ -1,5 +1,5 @@
-"""WP-C4 gaming/keys: Snap Click modes, OS shortcut keycodes, brightness down to off / up back on,
-Chordal Hold + Flow Tap (design 2.2 P1-1, P1-3, P1-4, P1-6).
+"""WP-C4 gaming/keys: Snap Click modes, brightness down to off / up back on, MT() hold from VIA
+(design 2.2 P1-1, P1-3).
 usage: python suite_gaming.py <fw_dir>   (epomaker_galaxy80_<k>.bin + nm_<k>.txt, k = via, default)
 Prints PASS / FAIL lines. The existing SOCD tests (test_features.py S3-SOCD*, S3-GAME) are not repeated.
 
@@ -8,11 +8,9 @@ S-SNAP-<mode>    Last / First / Second / Neutral, 6KRO and NKRO, WASD swap on an
                  one released, re-press while the other is held; never both keys of a pair in a report
 S-SNAP-misc      per-pair mask, pairs independent, invalid mode = Off, game mode + mode
 S-BRI            brightness steps 255..0, flash at both ends, up back on after RM_TOGG off
-S-OS-*           Mission Control / Launchpad (consumer usages), Siri (Cmd+Space held 500 ms), Task View,
-                 File Explorer, Snip report sequences, Win-lock blocks the Win chords, VIA JSON fragment
-S-TAP-*          Chordal Hold (same hand = tap, other hand = hold) and Flow Tap, MT keys set through VIA
+S-TAP-*          MT() key set through VIA: hold after the tapping term (200 ms)
 """
-import gc, json, os, re, struct, sys
+import gc, os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from g80emu import *
 
@@ -23,8 +21,7 @@ except Exception:
 
 fw = sys.argv[1]
 HERE = os.path.dirname(os.path.abspath(__file__))
-KBD = os.environ.get('G80_KBD') or os.path.normpath(os.path.join(HERE, '..', '..', 'keyboards', 'epomaker', 'galaxy80'))
-FN, S_, A_, D_, W_, N_, PAUSE, LSFT, E_, J_ = (5, 11), (3, 2), (3, 1), (3, 3), (2, 2), (4, 7), (0, 16), (4, 0), (2, 3), (3, 7)
+FN, S_, A_, D_, W_, N_, PAUSE, LSFT = (5, 11), (3, 2), (3, 1), (3, 3), (2, 2), (4, 7), (0, 16), (4, 0)
 FN_UP, FN_DOWN, FN_INS, FN_LWIN = (4, 15), (5, 15), (1, 14), (5, 1)
 HID = dict(A=0x04, D=0x07, E=0x08, J=0x0D, S=0x16, W=0x1A, TAB=0x2B, SPACE=0x2C, UP=0x52, DOWN=0x51, LEFT=0x50, RIGHT=0x4F)
 LGUI, LSHIFT, LCTL = 0x08, 0x02, 0x01
@@ -127,20 +124,6 @@ def set_kc(m, row, col, kc, layer=0):
     t_end = m.t_ms() + 1000
     while rd(m, 'g80_vq_busy', 1)[0] and m.t_ms() < t_end:
         m.run(m.t_ms() + 2)
-
-
-def consumer(m):
-    return struct.unpack('<H', rd(m, 'last_consumer_usage', 2))[0]
-
-
-def enum_keycodes():
-    """name -> keycode of enum galaxy80_keycodes (QK_KB_0 = 0x7E00 + index), parsed from galaxy80.h"""
-    s = open(os.path.join(KBD, 'galaxy80.h'), encoding='utf-8').read()
-    body = s[s.index('enum galaxy80_keycodes'):]
-    body = body[body.index('{') + 1:body.index('};')]
-    body = re.sub(r'/\*.*?\*/', '', body, flags=re.S)
-    names = [x.split('=')[0].strip() for x in body.split(',') if x.strip()]
-    return {n: 0x7E00 + i for i, n in enumerate(names)}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -371,99 +354,7 @@ def brightness_tests():
 
 
 # ---------------------------------------------------------------------------------------------
-# OS keycodes (VIA image)
-# ---------------------------------------------------------------------------------------------
-def os_tests():
-    kc = enum_keycodes()
-    names = ['G80_MCTRL', 'G80_LNPAD', 'G80_SIRI', 'G80_TASK', 'G80_FILE', 'G80_SNIP']
-    pos = {'G80_MCTRL': (0, 11), 'G80_LNPAD': (0, 12), 'G80_SIRI': (0, 13), 'G80_TASK': (0, 14), 'G80_FILE': (0, 15), 'G80_SNIP': (0, 16)}
-    # VIA JSON: the 6 OS keycodes sit in customKeycodes at their enum index (keycode - QK_KB_0)
-    frag_path = os.path.join(KBD, 'via_json', 'galaxy80.json')
-    try:
-        ck = json.load(open(frag_path, encoding='utf-8'))['customKeycodes']
-        frag = [ck[kc[n] - 0x7E00] for n in names]
-        short = ['MCtrl', 'LPad', 'Siri', 'Task', 'Files', 'Snip']
-        frag_ok = [f.get('shortName') for f in frag] == short and all(f.get('name') and f.get('title') for f in frag)
-        order_ok = [kc[n] for n in names] == sorted(kc[n] for n in names) and kc['G80_SNIP'] - kc['G80_MCTRL'] == 5
-    except Exception as e:  # noqa
-        frag_ok, order_ok = False, False
-        print('fragment error: %s' % e)
-    check('S-OS-json', 'VIA JSON customKeycodes hold the 6 OS keycodes (name, title, shortName) at their enum index, consecutive in the enum',
-          frag_ok and order_ok, 'fragment=%s codes=%s' % (frag_path, {n: hex(kc[n]) for n in names}))
-
-    m = mkq('via', stress=True)
-    m.run(400)
-    for n in names:
-        set_kc(m, *pos[n], kc[n])
-    m.run(450)
-    t = 500
-    # consumer keys
-    press(m, t, [pos['G80_MCTRL']], 100)
-    m.run(t + 50)
-    c1d = consumer(m)
-    m.run(t + 150)
-    c1u = consumer(m)
-    t = 800
-    press(m, t, [pos['G80_LNPAD']], 100)
-    m.run(t + 50)
-    c2d = consumer(m)
-    m.run(t + 150)
-    c2u = consumer(m)
-    check('S-OS-mac-consumer', 'Mission Control = consumer 0x29F while held, 0 after; Launchpad = 0x2A0',
-          c1d == 0x29F and c1u == 0 and c2d == 0x2A0 and c2u == 0, 'MCTRL %#x -> %#x, LNPAD %#x -> %#x' % (c1d, c1u, c2d, c2u))
-
-    # Siri: Cmd+Space held 500 ms after a short tap; a second press extends
-    t = 1100
-    press(m, t, [pos['G80_SIRI']], 30)
-    s_before = at(m, t - 10)
-    s_early = at(m, t + 100)   # key already up, still held
-    s_mid = at(m, t + 450)
-    s_end = at(m, t + 650)
-    t = 1900
-    press(m, t, [pos['G80_SIRI']], 30)
-    press(m, t + 300, [pos['G80_SIRI']], 30)
-    s2_a = at(m, t + 250)
-    s2_b = at(m, t + 600)    # 500 ms after the first press would be over; the second extends to t+800
-    s2_c = at(m, t + 1000)
-    check('S-OS-siri', 'Siri key: Cmd+Space registered on press, kept ~500 ms after a short tap, released afterwards; a second press extends the hold',
-          s_before == (0, set()) and s_early == (LGUI, {HID['SPACE']}) and s_mid == (LGUI, {HID['SPACE']}) and s_end == (0, set())
-          and s2_a == (LGUI, {HID['SPACE']}) and s2_b == (LGUI, {HID['SPACE']}) and s2_c == (0, set()),
-          'before=%s +100=%s +450=%s +650=%s | double: %s %s %s' % (s_before, s_early, s_mid, s_end, s2_a, s2_b, s2_c))
-
-    # Windows chords
-    t = 3200
-    res = {}
-    for n, exp in (('G80_TASK', (LGUI, {HID['TAB']})), ('G80_FILE', (LGUI, {HID['E']})), ('G80_SNIP', (LGUI | LSHIFT, {HID['S']}))):
-        press(m, t, [pos[n]], 100)
-        d = at(m, t + 50)
-        u = at(m, t + 150)
-        res[n] = (d, u, d == exp and u == (0, set()))
-        t += 300
-    check('S-OS-win', 'Task View = Win+Tab, File Explorer = Win+E, Snip = Win+Shift+S while held, all released after',
-          all(v[2] for v in res.values()), str({k: v[:2] for k, v in res.items()}))
-
-    # Win-lock (Fn+LWin): Win chords and Siri are blocked; the release does not release a real key
-    t = 4200
-    fn_combo(m, t, FN_LWIN)
-    m.run(t + 100)
-    press(m, t + 200, [E_], 400)                  # a real E held
-    press(m, t + 250, [pos['G80_FILE']], 100)     # File Explorer blocked: no Win, no extra E release
-    blk_file = at(m, t + 300)
-    blk_after = at(m, t + 400)
-    press(m, t + 700, [pos['G80_TASK']], 100)
-    blk_task = at(m, t + 750)
-    press(m, t + 900, [pos['G80_SIRI']], 50)
-    blk_siri = at(m, t + 950)
-    blk_siri_end = at(m, t + 1700)
-    check('S-OS-winlock', 'Win-lock on: Win+E / Win+Tab / Siri produce nothing, and the released blocked key does not release a held real E',
-          blk_file == (0, {HID['E']}) and blk_after == (0, {HID['E']}) and blk_task == (0, set()) and blk_siri == (0, set()) and blk_siri_end == (0, set()),
-          'file=%s after-release=%s task=%s siri=%s' % (blk_file, blk_after, blk_task, blk_siri))
-    check('S-OS-stable', 'no reset or fault during the OS keycode tests', not m.resets and not m.faults, 'resets=%s faults=%s' % (m.resets, m.faults))
-    m = None
-
-
-# ---------------------------------------------------------------------------------------------
-# Chordal Hold + Flow Tap (VIA image, MT keys set through VIA)
+# MT() tap-hold (VIA image, MT key set through VIA)
 # ---------------------------------------------------------------------------------------------
 def tap_tests():
     MT_A = 0x2000 | (LCTL << 8) | HID['A']   # MT(MOD_LCTL, KC_A) on key A (r3c1)
@@ -471,57 +362,18 @@ def tap_tests():
     m.run(400)
     set_kc(m, 3, 1, MT_A)
     m.run(450)
-    # 1. same hand: A (MT) held, S (left hand) tapped inside the tapping term -> tap 'a' then 's', no Ctrl ever
-    t = 600
-    press(m, t, [A_], 150)
-    press(m, t + 30, [S_], 40)
-    seen = []
-    for dt in range(0, 260, 5):
-        seen.append(at(m, t + dt))
-    mods_seen = {x[0] for x in seen}
-    keys_seen = set().union(*[x[1] for x in seen])
-    check('S-TAP-chord-same', 'Chordal Hold: MT(Ctrl,A) + S (same hand) inside the tapping term = a, s taps, never Ctrl',
-          LCTL not in mods_seen and HID['A'] in keys_seen and HID['S'] in keys_seen, 'mods seen=%s keys seen=%s' % (mods_seen, sorted(keys_seen)))
-    # 2. other hand: A (MT) + J (right hand) pressed and released inside the tapping term -> Ctrl+J
-    t = 1200
-    press(m, t, [A_], 150)
-    press(m, t + 30, [J_], 60)
-    seen = []
-    for dt in range(0, 260, 5):
-        seen.append(at(m, t + dt))
-    ctrl = [x for x in seen if x[0] & LCTL]
-    a_tap = [x for x in seen if HID['A'] in x[1]]
-    check('S-TAP-chord-other', 'Chordal Hold: MT(Ctrl,A) + J (other hand) = hold (Ctrl), no "a"', bool(ctrl) and not a_tap,
-          'Ctrl samples=%d, "a" samples=%d' % (len(ctrl), len(a_tap)))
-    # 3. hold alone: Ctrl after the tapping term, no key
+    # hold alone: Ctrl after the tapping term, no key
     t = 2000
     press(m, t, [A_], 600)
     h_early = at(m, t + 100)
     h_late = at(m, t + 400)
     check('S-TAP-hold', 'MT(Ctrl,A) held alone: nothing before the tapping term (200 ms), Ctrl after', h_early == (0, set()) and h_late == (LCTL, set()),
           'at 100 ms=%s at 400 ms=%s' % (h_early, h_late))
-    # 4. Flow Tap: S then A within 150 ms -> A is a tap at once (before the tapping term), held or not
-    t = 3000
-    press(m, t, [S_], 40)
-    press(m, t + 100, [A_], 600)        # 60 ms after S was released: inside FLOW_TAP_TERM (150)
-    f_a = at(m, t + 140)
-    f_b = at(m, t + 500)
-    check('S-TAP-flow', 'Flow Tap: A (MT Ctrl) pressed 100 ms after S is a tap at once (a, no Ctrl), also when kept held',
-          HID['A'] in f_a[1] and f_a[0] & LCTL == 0 and f_b[0] & LCTL == 0, 'at +40 ms=%s at +400 ms=%s' % (f_a, f_b))
-    # 5. no previous key for > 150 ms: normal tap-hold (hold after 200 ms)
-    t = 4500
-    press(m, t, [S_], 40)
-    press(m, t + 400, [A_], 600)
-    n_a = at(m, t + 500)
-    n_b = at(m, t + 800)
-    check('S-TAP-noflow', 'Flow Tap off when the previous key is older than FLOW_TAP_TERM: A (MT Ctrl) held 400 ms = Ctrl',
-          n_a == (0, set()) and n_b == (LCTL, set()), 'at +100 ms=%s at +400 ms=%s' % (n_a, n_b))
     check('S-TAP-stable', 'no reset or fault during the tap-hold tests', not m.resets and not m.faults, 'resets=%s faults=%s' % (m.resets, m.faults))
     m = None
 
 
 snap_tests()
 brightness_tests()
-os_tests()
 tap_tests()
 print('suite_gaming: %d PASS, %d FAIL' % (sum(results), len(results) - sum(results)))

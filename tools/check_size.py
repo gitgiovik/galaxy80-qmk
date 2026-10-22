@@ -4,7 +4,8 @@
 usage: check_size.py [ELF_OR_DIR ...]      (default: out/emu next to this repo)
 
 For every *.elf found:
-  - code (text) + initialised data must end below 0xF7C0 (the wear-leveling area starts there);
+  - code (text) + initialised data must end below 0xF6C0 (the wear-leveling aux sectors start there, then the
+    wear-leveling area at 0xF7C0);
   - the heap (__heap_end__ - __heap_base__, from nm) must be at least 512 bytes;
   - the matching .bin, when present, must be 65536 bytes with 0xAAAA5555 (little endian) at 0xFFFC.
 Reads the ELF with arm-none-eabi-size / arm-none-eabi-nm (PATH, or ARM_NONE_EABI_PREFIX for a prefix).
@@ -14,7 +15,7 @@ import struct
 import subprocess
 import sys
 
-FLASH_LIMIT = 0xF7C0
+FLASH_LIMIT = 0xF6C0
 MIN_HEAP = 512
 BOOT_FLAG_OFF = 0xFFFC
 BOOT_FLAG = 0xAAAA5555

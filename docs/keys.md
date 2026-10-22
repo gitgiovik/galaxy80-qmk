@@ -8,15 +8,14 @@ layer 1 on while held. Layer 2 of the VIA image is empty (transparent) and free 
 
 | Fn + | Function | Notes |
 |---|---|---|
-| Esc | ROM bootloader | only while Right Shift is held (Fn + RShift + Esc); needs the real Fn, ignored while Layer Lock is on |
+| Esc | ROM bootloader | only while Right Shift is held (Fn + RShift + Esc) |
 | F1 .. F12 | My Computer, Browser home, Calculator, Mail, Media select, Stop, Previous, Play/Pause, Next, Mute, Volume -, Volume + | stock media keys |
-| F13 | Layer Lock | keeps the Fn layer on until Fn or F13 is pressed again. While locked the whole Fn layer is active, so Space shows the battery gauge, Enter changes the effect, and so on. Plain letter keys act as their Fn functions too (toggle settings, switch channels), so typing text is not possible until the lock is released. The two hold actions and the bootloader key are the exception: Backspace (factory reset) and Q/W/E/R (pairing) held 3 s do nothing while the layer is locked, so a long Backspace to delete text never wipes the keyboard, and RShift+Esc (for example Ctrl+Shift+Esc) does not enter the bootloader. They need the real Fn key (pressing Fn also releases the lock); Q/W/E/R still switch the channel on a single press |
 | Pause | game mode on/off | Win lock + Alt+Tab block + Alt+F4 block + Snap Tap, all at once |
-| Backspace (hold 3 s) | factory reset | 7 white flashes, then the keyboard restarts with the defaults. Refused (3 red flashes) when the battery is critical; ignored while Layer Lock is on (hold the real Fn) |
+| Backspace (hold 3 s) | factory reset | 7 white flashes, then the keyboard restarts with the defaults. Refused (3 red flashes) when the battery is critical |
 | Ins | all LEDs off/on | |
 | Tab | block Left Alt+Tab on/off | key flashes green (on) or red (off) 3 times |
 | Caps Lock | block Left Alt+F4 on/off | same flashes |
-| Q, W, E, R | Bluetooth 1, 2, 3, 2.4G | only with the slider ON; hold 3 s to pair (with the real Fn, not under Layer Lock) |
+| Q, W, E, R | Bluetooth 1, 2, 3, 2.4G | only with the slider ON; hold 3 s to pair |
 | T | key backlight off/on | indicators (Caps, Win lock, bar) stay lit |
 | \ | next palette colour | 8 stock colours: red, orange, yellow, green, cyan, blue, pink, white |
 | S | Snap Tap on/off | flashes the S key |
@@ -42,8 +41,8 @@ never saved, and the switch gives 3 blue (Mac) or 3 green (Win) flashes on all k
 
 ## Other defaults
 
-* **Shift + Backspace = Delete** (VIA image). The Shift key is not sent with it.
-* With the Win lock or game mode on, the Windows-key shortcuts of the OS keys below are blocked too.
+* The LEDs go dark after 5 minutes without a key, on the cable and wireless (VIA *Lights Off After*); the keyboard keeps
+  typing and any key lights them again. The indicators are dark with them.
 
 ## The per-key colour editor (Fn+K)
 
@@ -81,16 +80,7 @@ The channel key (Q/W/E/R) shows the wireless link (see [wireless.md](wireless.md
 These are available in VIA's custom keycodes tab, in this order (never reordered, only appended):
 
 Safe Boot (bootloader, with Right Shift held), Win Lock, Factory Reset, Next Color, Keys Off, Bar Mode, Lock
-Screen, Show Desktop, WASD Swap, Alt Tab Block, Alt F4 Block, Snap Tap, Key Colors (editor), Game Mode,
-**Sleep Now** (experimental), Mission Control, Launchpad, Siri, Task View, File Explorer, Snip.
-
-| OS key | Sends |
-|---|---|
-| Mission Control, Launchpad | the macOS Mission Control and Launchpad keys |
-| Siri | Cmd+Space held for 0.5 s |
-| Task View | Win+Tab |
-| File Explorer | Win+E |
-| Snip | Win+Shift+S |
+Screen, Show Desktop, WASD Swap, Alt Tab Block, Alt F4 Block, Snap Tap, Key Colors (editor), Game Mode.
 
 QMK keycodes can be typed on VIA's *Any* key. These are handled specially:
 
@@ -103,9 +93,10 @@ QMK keycodes can be typed on VIA's *Any* key. These are handled specially:
 * `OS_TOGG`, `OS_ON`, `OS_OFF` (one-shot keys on/off): the change is made at once and saved with the settings.
 * `EE_CLR` is the factory reset **on a single press**, with no hold and no confirmation: a key with `EE_CLR` wipes the
   keymap, macros, per-key colours and settings the moment it is pressed (refused only on a critical battery).
-* Caps Word (`CW_TOGG`), Repeat Key, Layer Lock (`QK_LLCK`), Mouse Keys and `MT()`/`LT()` tap-hold keys work. For the
-  tap-hold keys, Chordal Hold (a hold counts only together with a key of the other hand) and Flow Tap
-  (a tap-hold key typed within 150 ms of the previous key is a tap) are on, tapping term 200 ms.
+* Caps Word (`CW_TOGG`), Repeat Key, Mouse Keys and `MT()`/`LT()` tap-hold keys work (tapping term 200 ms, permissive
+  hold).
+* A layer kept on without Fn (`TG(1)`, `TO(1)`) makes Backspace held 3 s the factory reset and RShift+Esc the
+  bootloader key, because those are the Fn-layer keys. Do not map them unless you want that.
 * Not built: Key Lock, Dynamic Macros, Combos, Tap Dance, Leader Key, Autocorrect (RAM).
 
 ## Gaming functions

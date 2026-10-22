@@ -13,7 +13,8 @@
 //     and read active-high (pressed = 1).
 // The rows are never configured as outputs and never get an internal pull-up: P3.7 is the
 // chip's external RESET pin function and P3.6 is SWCLK (disabled in board_init()).
-// Debounce is done by QMK (sym_defer_pk, 5 ms ~ stock default 5 full scans).
+// Debounce: QMK's sym_defer_pk in the minimal image, g80_debounce.c (time set from VIA, default
+// 5 ms ~ stock default 5 full scans) in the RGB images.
 //
 // With RGB_MATRIX_ENABLE the reads move into the CT16B1 LED ISR (g80_rgb.c, 2 columns
 // per 128 us phase, same electrical sequence as below), and this file only takes the
@@ -45,7 +46,7 @@ static const pin_t col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
  * back low) are defined in config.h, shared with the ISR scan in g80_rgb.c. */
 _Static_assert(G80_COL_SETTLE_CYCLES >= 1 && G80_COL_SETTLE_CYCLES <= 135, "wait_cpuclock() supports only 1..135 cycles");
 /* Minimum time between two full scan passes. Stock: ~1.15 ms (9 CT16B1 ISRs of ~128 us).
- * 0 = scan on every matrix_scan() call (old behaviour, columns still idle HIGH). */
+ * 0 = scan on every matrix_scan() call (not used by any image). */
 #ifndef G80_SCAN_INTERVAL_US
 #    define G80_SCAN_INTERVAL_US 1000
 #endif

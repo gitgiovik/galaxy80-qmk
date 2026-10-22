@@ -17,7 +17,7 @@ the repository README and `docs/recovery.md` first. This directory builds agains
 
 | Keymap | Content |
 |---|---|
-| `via` | full firmware with VIA; settings, keymap and key colours persist in the flash band 0xF7C0..0xFFBF; Shift+Backspace = Delete |
+| `via` | full firmware with VIA; settings, keymap and key colours persist in the flash band 0xF7C0..0xFFBF (helper sectors 0xF6C0..0xF7BF) |
 | `default` | the same without VIA; settings in RAM only (no flash writes at run time) |
 | `minimal` | safety image: plain USB keyboard, LEDs off, no RGB / radio code |
 | `debug` | `default` plus the QMK console (raw matrix, LED engine, radio link counters) |
@@ -35,16 +35,16 @@ The VIA definition to sideload is `via_json/galaxy80.json` (lighting menu and a 
 | `galaxy80.c/.h` | board bring-up, early ISP key check, watchdog, fault handlers, USB host-lost logic, QMK hooks, SEC-1 |
 | `g80_rgb.c/.h`, `matrix.c` | LED engine (CT16B1 ISR with the key scan inside), rgb_matrix driver, polled-scan fallback |
 | `g80_settings.c/.h` | persistent settings, deferred save and write gate, Win/Mac switch, wireless slider, charger pins |
-| `g80_fn.c/.h` | Fn actions and flashes, factory reset, RGB and magic keycodes, OS keys, Chordal Hold map |
+| `g80_fn.c/.h` | Fn actions and flashes, factory reset, RGB and magic keycodes |
 | `g80_gaming.c/.h` | Snap Click / SOCD, WASD swap, game mode, Win lock, Alt+Tab / Alt+F4 blocking |
 | `g80_perkey.c/.h` | per-key colour table, paint session (Apply / Discard), on-board editor |
 | `g80_bar.c/.h`, `g80_indicators.c/.h` | side-bar modes and gauge, indicator pass |
-| `g80_battery.c/.h` | battery events, brightness cap, wired idle timeout |
-| `g80_lpm.c/.h` | wireless idle countdown, deep sleep (experimental), low-voltage reset |
+| `g80_battery.c/.h` | battery events, brightness cap, lights-off timeout (wired and wireless) |
+| `g80_lpm.c/.h` | wireless deep-sleep countdown, deep sleep (experimental), low-voltage reset |
 | `g80_radio.c/.h` | radio module protocol and the wireless mode |
 | `g80_via.c/.h` | VIA custom channel, key painter, deferred keymap writes |
 | `g80_debounce.c`, `g80_wear_leveling.c` | runtime debounce, flash backing store for the VIA EEPROM |
-| `g80_test_hooks.h`, `g80_layers.h`, `rgb_matrix_kb.inc` | symbols for the emulator tests, shared layers, extra effects |
+| `g80_test_hooks.h`, `g80_layers.h`, `rgb_matrix_kb.inc` | symbols for the emulator tests, shared layers, the Per-key effect |
 
 ## Documentation
 
@@ -52,5 +52,5 @@ Everything else is in the repository: `README.md` (features and their test statu
 `install.md`, `recovery.md`, `is-this-my-board.md`, `keys.md`, `via.md`, `wireless.md`, `battery-sleep.md`,
 `stability.md`, `building.md`, `testing.md`, `hardware-test-checklist.md` and `protocol/radio-uart.md`.
 
-Deep sleep (the "Wireless Sleep After" option and the `Sleep Now` keycode) is experimental and has passed the emulator
-tests only; the default is Never.
+Deep sleep (the "Deep Sleep After" option, wireless only) is experimental and has passed the emulator tests only; the
+default is Never. The lights-off timeout ("Lights Off After", wired and wireless) defaults to 5 minutes.

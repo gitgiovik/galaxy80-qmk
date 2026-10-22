@@ -65,8 +65,6 @@ jobs:
           G80_OBJDUMP: arm-none-eabi-objdump
           # Each unicorn engine commits about 1 GiB: keep the parallelism low.
           G80_JOBS: "2"
-          # Expected failures of the current baseline (see tests/README.md); remove entries when fixed.
-          KNOWN_FAIL_REGEX: "^FAIL.*F2-stage1"
         run: |
           set -u
           FW="$PWD/out/emu"; T="$PWD/out/t"; mkdir -p "$T"
@@ -101,8 +99,8 @@ jobs:
             printf '%-32s PASS %3d  FAIL %3d%s\n' "$f" "$p" "$q" "$note"
           done | tee "$PWD/../emu_summary.txt"
           grep -q CRASH "$PWD/../emu_summary.txt" && status=1
-          unexpected=$(cat $(find . -name '*.txt' ! -name trace.txt) | grep '^FAIL' | grep -vE "$KNOWN_FAIL_REGEX" || true)
-          if [ -n "$unexpected" ]; then echo "UNEXPECTED FAILS:"; echo "$unexpected" | cut -c1-300; status=1; fi
+          fails=$(cat $(find . -name '*.txt' ! -name trace.txt) | grep '^FAIL' || true)
+          if [ -n "$fails" ]; then echo "FAILS:"; echo "$fails" | cut -c1-300; status=1; fi
           exit $status
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

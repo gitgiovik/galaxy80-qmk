@@ -5,7 +5,7 @@ keyboard running on its battery (slider ON). Everything on it is **emulator-test
 
 ## Fn+Space: battery gauge
 
-Hold **Fn + Space**. The side bar becomes the gauge and the number row mirrors it:
+Hold **Fn + Space**. The side bar becomes the gauge:
 
 | Level | Bar |
 |---|---|
@@ -13,12 +13,10 @@ Hold **Fn + Space**. The side bar becomes the gauge and the number row mirrors i
 | 0 % | LED 1 blinks red |
 | unknown | LED 1 blinks white, slowly |
 
-* Number row keys 1 to 0 are 10 % each, in the same colour.
-* The gauge grows from LED 1, one more LED about every 50 ms after the press.
 * While charging the lit LEDs breathe. If the module has not answered, the last known value is shown dimmed.
 * The firmware asks the module for the level when you press, again every 2 s while you hold, every 60 s while linked,
   and after a wake-up.
-* Nothing is typed. It also works while Layer Lock keeps the Fn layer on.
+* Nothing is typed.
 * Which end of the bar is "bottom" is an assumption not yet checked on hardware (checklist H-B1).
 
 ## Charging and low battery
@@ -29,27 +27,41 @@ Hold **Fn + Space**. The side bar becomes the gauge and the number row mirrors i
   five blinks per 30 s started by a key press. *Power > Low Battery Warning*.
 * **Critical battery** (module event): no flash write is started (settings, Apply, VIA keymap writes, factory reset). A
   factory reset is refused with red flashes. Changes stay in RAM and are saved when the module reports a normal level
-  or a charger is connected. A cable that supplies power never inhibits saving.
+  or a charger is connected. A cable that supplies power never inhibits saving. With Deep Sleep After = Never (the
+  default) the keyboard stays awake on a critical battery until the low-voltage reset: a critical battery does not
+  deep-sleep it, the radio module / LVD cut power, and nothing is written to flash meanwhile.
 * **Max Brightness on Battery** (75 / 50 / 25 %): while on battery (wireless, no charger) the LED driver scales every
   colour. Your brightness setting is neither changed nor stored.
-* **Wired Idle Lights Off** (1 / 5 / 10 / 30 min): on the cable the LEDs go dark after that long without a key and come back
-  with the next one. Default Never.
 * A low-voltage detector resets the chip when the supply falls to about 2.4 V (the stock value). It only resets and never
   enters the bootloader.
 
-## Wireless sleep (EXPERIMENTAL)
+## Lights off
+
+**Lights Off After** (VIA, Power): Never, 1 min, **5 min** (default), 10 min, 30 min. Wired and wireless.
+
+* After that long without activity the LEDs go dark: effect, side bar and indicators (charging, low battery, critical
+  battery, link-lost and pairing blinks, unsaved paint): a warning that comes while dark shows at the next key. Only the lights: the keyboard keeps scanning and typing, the radio link stays up.
+* Activity is any key (also Fn+Space, so the gauge shows at once), any VIA command (not the key tester), and moving the
+  slider (wired <-> wireless). Plugging or unplugging the charger does not light them. The next one lights everything again; the key is typed as usual.
+* Never while the on-board colour editor is open (it closes itself after 2 min without a key).
+* The `default` image has no VIA menu: its LEDs go off after 5 min, and it never deep-sleeps.
+
+## Deep sleep (wireless, EXPERIMENTAL)
 
 > Deep sleep is the least tested code in the project. It follows the stock firmware's register sequence, uses bounded
 > waits and restarts the watchdog first on wake, and it passes the emulator, but it has **not run on hardware**. A hang
 > while on battery can leave the keyboard dead until the battery is empty. The factory setting is **Never**.
 
-**Wireless Sleep After** (VIA, Power): Never (default), 1 min, 5 min, 30 min.
+**Deep Sleep After** (VIA, Power): Never (default), 5 min, 10 min, 30 min, 60 min, counted from the last key. Set it
+longer than Lights Off After: the lights go off first and the keyboard sleeps later. A shorter value also works (the
+deep sleep switches the LEDs off as well).
 
 How it behaves (stock timing):
 
-* A countdown runs only in wireless mode with the option not Never. Every key event restarts it. While no host is linked
-  it is 15 s; once linked it is the chosen time (the module's "linked" message first sets 5 min until the next key); a
-  critical-battery or lost-link message cuts it to 15 s. It does not run while a key is down or while pairing.
+* A countdown runs only in wireless mode with the option not Never. Every key (also the keys the colour editor takes),
+  a mode change and the module's "linked" message restart it with the chosen time; while no host is linked it is 15 s,
+  and a critical-battery or lost-link message cuts it to 15 s (stock). It does not run while a key is down or while
+  pairing.
 * A key held for 10 minutes with no other key event stops blocking sleep: the host gets "all keys up" and the key is
   ignored until it is released.
 * At zero the keyboard sleeps only if every guard holds: slider ON, USB stopped, radio idle, no key down, no settings save
@@ -57,9 +69,7 @@ How it behaves (stock timing):
   tries again a second later. It is never half entered.
 * A pairing window (20 s) or reconnect indication (10 s) that ends without a link starts a short countdown (3 s and 0.5 s),
   so a failed pairing does not keep the keyboard awake.
-* **Sleep Now** (VIA custom keycode, on no key by default) sleeps once all keys are released, also with the option Never.
-  Wired it does nothing.
-* **Waking**: any key (the key is then sent), or the slider to OFF (USB mode). The charger does not wake it, and radio
+* **Waking**: any key (the key is then sent, and the lights come back), or the slider to OFF (USB mode). The charger does not wake it, and radio
   bytes that arrive while it sleeps are lost, as on the stock firmware. After the wake the link re-establishes and a fresh
   battery level is requested. The stock firmware sends one extra message after a 2.4G wake that this firmware omits;
   whether that matters is unconfirmed (checklist H-S6b measures the reconnect delay).
