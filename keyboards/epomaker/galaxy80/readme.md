@@ -17,7 +17,7 @@ the repository README and `docs/recovery.md` first. This directory builds agains
 
 | Keymap | Content |
 |---|---|
-| `via` | full firmware with VIA; settings, keymap and key colours persist in the flash band 0xF7C0..0xFFBF (helper sectors 0xF6C0..0xF7BF) |
+| `via` | full firmware with VIA; settings, keymap and key colours persist in the flash band 0xF7C0..0xFFBF (helper sectors 0xF6C0..0xF7BF); Shift+Backspace = Delete |
 | `default` | the same without VIA; settings in RAM only (no flash writes at run time) |
 | `minimal` | safety image: plain USB keyboard, LEDs off, no RGB / radio code |
 | `debug` | `default` plus the QMK console (raw matrix, LED engine, radio link counters) |
@@ -35,7 +35,7 @@ The VIA definition to sideload is `via_json/galaxy80.json` (lighting menu and a 
 | `galaxy80.c/.h` | board bring-up, early ISP key check, watchdog, fault handlers, USB host-lost logic, QMK hooks, SEC-1 |
 | `g80_rgb.c/.h`, `matrix.c` | LED engine (CT16B1 ISR with the key scan inside), rgb_matrix driver, polled-scan fallback |
 | `g80_settings.c/.h` | persistent settings, deferred save and write gate, Win/Mac switch, wireless slider, charger pins |
-| `g80_fn.c/.h` | Fn actions and flashes, factory reset, RGB and magic keycodes |
+| `g80_fn.c/.h` | Fn actions and flashes, factory reset, RGB and magic keycodes, OS keys, Chordal Hold map |
 | `g80_gaming.c/.h` | Snap Click / SOCD, WASD swap, game mode, Win lock, Alt+Tab / Alt+F4 blocking |
 | `g80_perkey.c/.h` | per-key colour table, paint session (Apply / Discard), on-board editor |
 | `g80_bar.c/.h`, `g80_indicators.c/.h` | side-bar modes and gauge, indicator pass |

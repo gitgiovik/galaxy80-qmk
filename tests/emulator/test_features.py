@@ -483,9 +483,9 @@ def run(ctx):
         nfx = max(ids.values()) + 1
         ok = (j['vendorId'] == '0x4758' and j['productId'] == '0x0080' and fx and [o[1] for o in fx] == list(range(nfx))
               and all(len(o[0]) <= 18 for o in fx) and fx[ids['G80_PER_KEY']][0] == 'Per-key' and vids == set(range(2, 35))
-              and len(j['customKeycodes']) == 14)
+              and len(j['customKeycodes']) == 20)
         check('S3-VIA', 'VIA definition: 4758:0080, effect dropdown = ids 0..%d in compiled order with short names (<= 18 chars), '
-              'custom value ids 2..34 (id 1 = VIA key painter protocol, stage 4; 24..34 phase C), 14 custom keycodes (G80_SBOOT..G80_GAME)' % (nfx - 1), ok,
+              'custom value ids 2..34 (id 1 = VIA key painter protocol, stage 4; 24..34 phase C), 20 custom keycodes (G80_SBOOT..G80_GAME, 6 OS keycodes appended)' % (nfx - 1), ok,
               'effects=%s; value ids=%s; keycodes=%d' % ([o[0] for o in fx] if fx else None, sorted(vids), len(j['customKeycodes'])))
 
 

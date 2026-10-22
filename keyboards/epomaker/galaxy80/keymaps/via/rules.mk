@@ -9,3 +9,5 @@ EEPROM_DRIVER = vendor
 WEAR_LEVELING_DRIVER = custom
 OPT_DEFS += -DHAL_USE_EFL
 SRC += g80_wear_leveling.c
+# Key overrides: Shift+Backspace = Delete (keymap.c)
+KEY_OVERRIDE_ENABLE = yes

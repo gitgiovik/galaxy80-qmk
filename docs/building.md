@@ -37,7 +37,7 @@ puts the toolchain on PATH), `G80_BUILD_DATE` (see below). On Windows, `G80_BASH
 
 | Keymap | Content |
 |---|---|
-| `via` | full firmware with VIA and persistent settings in 0xF7C0..0xFFBF (plus the wear-leveling aux sectors 0xF6C0..0xF7BF) |
+| `via` | full firmware with VIA and persistent settings in 0xF7C0..0xFFBF (plus the wear-leveling aux sectors 0xF6C0..0xF7BF); Shift+Backspace = Delete |
 | `default` | the same without VIA; settings in RAM only, no flash writes at run time |
 | `minimal` | safety image: USB keyboard, LEDs off, no RGB or radio, no VIA |
 | `debug` | `default` plus the QMK console on a HID interface (raw matrix, LED engine, radio counters); use `tools/g80_console.py` to read it and `tools/g80_matrix_report.py` to analyse a capture. Read-only tools |

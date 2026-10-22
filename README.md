@@ -64,6 +64,9 @@ re-checked as regressions in the checklist.)
 | SEC-1 | the stock updater's "enter bootloader" command is honoured only while Fn is physically held ([SECURITY.md](SECURITY.md)) |
 | Wireless NKRO | more than 6 simultaneous keys over 2.4G/Bluetooth (VIA option "Wireless NKRO", on by default), system control keys (sleep) over wireless |
 | Snap Click modes | Last, First, Second, Neutral input, per pair (A/D, W/S, Left/Right, Up/Down) |
+| OS keys | Mission Control, Launchpad, Siri, Task View, File Explorer, Snip, as VIA custom keycodes; Siri and the Windows ones are blocked while the Win lock or game mode is on |
+| Home-row mods | Chordal Hold and Flow Tap for `MT()`/`LT()` keys assigned from VIA ("Any"); inert unless you assign such keys |
+| Key override | Shift+Backspace sends Delete (VIA image) |
 | QMK magic keycodes | `CL_*`, `AG_*`, `GU_*`, `NK_*`, `GE_*`, `BS_*`, `EC_*` and friends take effect at once and are saved with the settings, except `AG_*` (Alt/GUI swap): the Win/Mac switch sets that again at every boot and switch move; `OS_TOGG`/`OS_ON`/`OS_OFF` and `PDF(n)` are saved the same way; `EE_CLR` runs the factory reset on a single press, no hold (refused on a critical battery) |
 | Mouse keys, Repeat Key | assignable from VIA ("Any"); no hardware test is on record for them |
 | Brightness to off | Fn+Down steps 100 / 75 / 50 / 25 % / off, Fn+Up brings the lights back |
@@ -207,7 +210,7 @@ Details: [docs/via.md](docs/via.md).
    Colors** (in the editor: **Fn+Enter**) to store the colours; **Discard Changes** (**Fn+Delete**) goes back to
    the stored ones. Side-bar LED 5 blinks magenta while there is unsaved paint. A power cut or replug with
    unsaved paint loses it - that is the design.
-4. The custom keycodes (Safe Boot, Win Lock, Factory Reset, Game Mode, ...) are in VIA's tab for
+4. The custom keycodes (Safe Boot, Win Lock, Factory Reset, Game Mode, OS keys, ...) are in VIA's tab for
    custom keycodes; any QMK keycode can be typed on the **Any** key.
 
 ## Key reference
@@ -299,7 +302,7 @@ must end below 0xF6C0 and the free RAM must stay at least 512 bytes; the link fa
 
 * [QMK Firmware](https://qmk.fm) and the [SonixQMK](https://github.com/SonixQMK/qmk_firmware) community, which
   made the SN32F2xx platform.
-* Nick Brassel (wear-leveling), Alex Ong and contributors (debounce), Keychron (Snap Click behaviour),
+* Nick Brassel (wear-leveling), Alex Ong and contributors (debounce), Keychron (Snap Click and OS key behaviour),
   see [NOTICE.md](NOTICE.md).
 * Issues and pull requests are welcome; use the issue templates. Hardware reports from other
   revisions are especially useful. Never attach or link vendor firmware.

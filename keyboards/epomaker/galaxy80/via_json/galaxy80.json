@@ -669,6 +669,36 @@
       "name": "Game\nMode",
       "title": "Game mode on or off, Fn Pause",
       "shortName": "Game"
+    },
+    {
+      "name": "Mission\nControl",
+      "title": "Mac: Mission Control",
+      "shortName": "MCtrl"
+    },
+    {
+      "name": "Launch\npad",
+      "title": "Mac: Launchpad",
+      "shortName": "LPad"
+    },
+    {
+      "name": "Siri",
+      "title": "Mac: Siri, Cmd Space held for 0.5 seconds",
+      "shortName": "Siri"
+    },
+    {
+      "name": "Task\nView",
+      "title": "Windows: Task View, Win Tab",
+      "shortName": "Task"
+    },
+    {
+      "name": "File\nExplorer",
+      "title": "Windows: File Explorer, Win E",
+      "shortName": "Files"
+    },
+    {
+      "name": "Snip",
+      "title": "Windows: screen snip, Win Shift S",
+      "shortName": "Snip"
     }
   ],
   "layouts": {

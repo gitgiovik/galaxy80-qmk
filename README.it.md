@@ -14,7 +14,7 @@ La documentazione completa e' in inglese: [README.md](README.md) e la cartella [
 * **Provato solo nell'emulatore** (novita' della 1.0.0, mai provate su una tastiera vera): spegnimento delle luci
   dopo l'inattivita' (cavo e wireless, predefinito 5 min), sleep profondo wireless (**SPERIMENTALE**, predefinito "Never"),
   indicatore di batteria Fn+Space, salvataggio VIA stabile, Apply/Discard dei colori, protezione SEC-1, NKRO wireless,
-  modalita' Snap Click, tasti QMK "magic". L'elenco e la lista di prove da fare: [docs/hardware-test-checklist.md](docs/hardware-test-checklist.md).
+  modalita' Snap Click, tasti per macOS/Windows, Chordal Hold e Flow Tap per i tasti `MT()`/`LT()`, Shift+Backspace = Canc, tasti QMK "magic". L'elenco e la lista di prove da fare: [docs/hardware-test-checklist.md](docs/hardware-test-checklist.md).
 
 ## E' la mia scheda?
 

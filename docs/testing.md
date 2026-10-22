@@ -38,7 +38,7 @@ Full description of the files, how to run one suite, the test ids and the conven
 | Wireless | radio frames, ACK and retry, channels, hybrid NKRO, system control |
 | Battery and sleep | events, gauge, indicators, critical-battery inhibit, lights-off timeout, deep sleep, countdown, low-voltage reset |
 | Security | the Fn-gated bootloader command (SEC-1) |
-| Magic keycodes | the magic-keycode suite |
+| Magic keycodes, key override | the magic-keycode suite, suite_gaming.py (T-KO-1) |
 
 ## Static checks
 

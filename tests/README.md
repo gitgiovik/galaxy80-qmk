@@ -57,7 +57,7 @@ as a historical image to upgrade from; they are not built from the current sourc
 | `emulator/test_wireless.py` | wireless mode with a simulated module: frames, ACK/retry, channel keys |
 | `emulator/test_host_off.py` | PC off with USB 5 V present: LEDs off, wake, suspend |
 | `emulator/suite_battery*.py` | battery events, Fn+Space gauge, indicator priorities, lights-off timeout (wired, wireless, VIA, charger and slider edges) |
-| `emulator/suite_gaming.py` | Snap Click, brightness to off, MT() hold from VIA |
+| `emulator/suite_gaming.py` | Snap Click, OS keys, brightness to off, Chordal Hold, Flow Tap, MT() hold from VIA, key override |
 | `emulator/suite_magic.py` | QMK magic keycodes and EE_CLR from VIA |
 | `emulator/suite_paint.py` | paint session (Apply/Discard) and VIA menu items |
 | `emulator/suite_radio.py` | radio protocol, NKRO, A4 |

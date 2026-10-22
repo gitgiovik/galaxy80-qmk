@@ -44,6 +44,11 @@ Thanks to the QMK and SonixQMK communities for the platform this port stands on.
     (both keys of a pair held, `last_single_key`, the other key returns on release). Re-expressed on
     per-key hold counters and the `add_key()`/`del_key()` report; the Keychron raw-HID protocol and
     EEPROM block of that file are not used. The original copyright line is kept in the file header.
+  - `keyboards/epomaker/galaxy80/g80_fn.c`: the OS keycodes (Mission Control, Launchpad, Siri =
+    Cmd+Space held 500 ms, Task View, File Explorer, Snip) follow the behaviour of
+    `keyboards/keychron/common/keychron_common.c` (`process_record_keychron_common`,
+    `keychron_common_task`). The Windows Snip chord is Win+Shift+S (Keychron's `KC_SNAP` is the Mac
+    screenshot chord). The original copyright line is kept in the file header.
   - The brightness-to-off idea (`RGB_MATRIX_BRIGHTNESS_TURN_OFF_VAL` in
     `keyboards/keychron/common/rgb/keychron_rgb.c`) is reimplemented, no code copied.
 - VIA: the keyboard definition follows the format of the VIA project (https://www.caniusevia.com);

@@ -23,6 +23,12 @@ enum galaxy80_keycodes {
     G80_SOCD,            /* Fn+S : SOCD / snap tap on/off (last input wins on A/D, W/S, arrows) */
     G80_EDIT,            /* Fn+K : on-board per-key colour editor enter/exit (exit saves) */
     G80_GAME,            /* Fn+Pause: game mode (Win-lock + Alt+Tab/F4 block + SOCD) */
+    G80_MCTRL,           /* Mac: Mission Control */
+    G80_LNPAD,           /* Mac: Launchpad */
+    G80_SIRI,            /* Mac: Siri = Cmd+Space held 500 ms */
+    G80_TASK,            /* Win: Task View = Win+Tab */
+    G80_FILE,            /* Win: File Explorer = Win+E */
+    G80_SNIP,            /* Win: Snip & Sketch = Win+Shift+S */
     G80_KB_SAFE_RANGE,
 };
 

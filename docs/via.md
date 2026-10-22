@@ -21,6 +21,9 @@ no more layers; about 184 bytes are left for VIA macros. Layers 0 and 1 are the 
 replaces the matching Fn function. The firmware's own keys are in the custom keycodes tab; any other QMK keycode
 can be entered on *Any*.
 
+The custom keycodes tab also has the OS keys (Mission Control, Launchpad, Siri, Task View, File Explorer, Snip; see
+[keys.md](keys.md)). Assigned `MT()`/`LT()` keys use Chordal Hold and Flow Tap, and Shift+Backspace sends Delete.
+
 Keymap and macro writes are queued and saved by the keyboard in small steps while you are not typing
 ([stability.md](stability.md)). VIA waits for the answer of each write, so it never shows a change as saved before it is
 in flash; a large upload (for example a full macro) can take a moment.

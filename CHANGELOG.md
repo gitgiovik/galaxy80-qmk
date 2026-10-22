@@ -46,6 +46,10 @@ gaming and VIA firmware (hardware-tested until the stage before it).
 * **SEC-1**: the stock updater's bootloader command is honoured only while Fn is physically held.
 * **Wireless**: hybrid NKRO over the radio (VIA option, default on) and system-control keys.
 * **Snap Click** modes (Last, First, Second, Neutral) per pair, set in VIA.
+* **OS keys**: Mission Control, Launchpad, Siri (Cmd+Space held 0.5 s), Task View, File Explorer, Snip (VIA custom keycodes,
+  appended after Game Mode; the Windows chords and Siri are blocked while the Win lock or game mode is on).
+* Chordal Hold and Flow Tap (150 ms) for `MT()`/`LT()` keys assigned in VIA (`via` image only).
+* **Key override** (`via` image only): Shift+Backspace sends Delete.
 * QMK **magic keycodes** (`CL_*`, `AG_*`, `GU_*`, `NK_*`, `EC_*`...) are applied in RAM at once and saved with the settings
   instead of writing flash inside the key event, and so are `PDF(n)` (persistent default layer; a layer the keymap does not have
   is ignored) and the one-shot switches `OS_TOGG`/`OS_ON`/`OS_OFF`; `EE_CLR` runs the factory reset and is refused on a critical battery.
@@ -57,14 +61,13 @@ gaming and VIA firmware (hardware-tested until the stage before it).
 
 * RGB effects other than **Solid**, **Rainbow** (QMK's rainbow rise, the factory default) and **Per-key**: Breathing, Color
   Cycle, Rainbow Wave, Reactive and the stock replicas Tap Off, Colorful, Flowing and Shuttle. The side-bar modes are unchanged.
-* Pre-release features that are not kept: Layer Lock (Fn+F13), Chordal Hold and Flow Tap, the OS keycodes (Mission Control,
-  Launchpad, Siri, Task View, File Explorer, Snip), the `Sleep Now` keycode, the growing gauge animation and the number-row
-  battery mirror. The VIA custom keycodes are now 14 (Safe Boot .. Game Mode).
+* Pre-release features that are not kept: Layer Lock (Fn+F13), the `Sleep Now` keycode, the growing gauge animation and
+  the number-row battery mirror. The VIA custom keycodes are 20 (Safe Boot .. Game Mode, then the six OS keys).
 
 ### Build notes
 
 * Flash was reclaimed by cutting the RGB effect list to three effects, removing the features above and restructuring the
-  sources. The `via` image ends about 5.5 KB below 0xF6C0 (the power-fail-safe consolidation sectors) and has about 680
+  sources. The `via` image ends about 2.5 KB below 0xF6C0 (the power-fail-safe consolidation sectors) and has about 620
   bytes of free RAM.
 * The VIA EEPROM layout is version 0xA8 (3 layers, 2 bytes per LED, the effect ids and the power options of this version).
   A new layout or a flash wipes the stored VIA data.

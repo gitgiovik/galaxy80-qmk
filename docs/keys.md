@@ -41,6 +41,8 @@ never saved, and the switch gives 3 blue (Mac) or 3 green (Win) flashes on all k
 
 ## Other defaults
 
+* **Shift + Backspace = Delete** (VIA image). The Shift key is not sent with it. To switch it off until the next replug, type `KO_TOGG` on VIA's *Any* key.
+* With the Win lock or game mode on, the Windows-key shortcuts of the OS keys below are blocked too.
 * The LEDs go dark after 5 minutes without a key, on the cable and wireless (VIA *Lights Off After*); the keyboard keeps
   typing and any key lights them again. The indicators are dark with them.
 
@@ -80,7 +82,15 @@ The channel key (Q/W/E/R) shows the wireless link (see [wireless.md](wireless.md
 These are available in VIA's custom keycodes tab, in this order (never reordered, only appended):
 
 Safe Boot (bootloader, with Right Shift held), Win Lock, Factory Reset, Next Color, Keys Off, Bar Mode, Lock
-Screen, Show Desktop, WASD Swap, Alt Tab Block, Alt F4 Block, Snap Tap, Key Colors (editor), Game Mode.
+Screen, Show Desktop, WASD Swap, Alt Tab Block, Alt F4 Block, Snap Tap, Key Colors (editor), Game Mode, Mission Control, Launchpad, Siri, Task View, File Explorer, Snip.
+
+| OS key | Sends |
+|---|---|
+| Mission Control, Launchpad | the macOS Mission Control and Launchpad keys |
+| Siri | Cmd+Space held for 0.5 s (blocked while the Win lock or game mode is on) |
+| Task View | Win+Tab (blocked while the Win lock or game mode is on) |
+| File Explorer | Win+E (same) |
+| Snip | Win+Shift+S (same) |
 
 QMK keycodes can be typed on VIA's *Any* key. These are handled specially:
 
@@ -93,8 +103,9 @@ QMK keycodes can be typed on VIA's *Any* key. These are handled specially:
 * `OS_TOGG`, `OS_ON`, `OS_OFF` (one-shot keys on/off): the change is made at once and saved with the settings.
 * `EE_CLR` is the factory reset **on a single press**, with no hold and no confirmation: a key with `EE_CLR` wipes the
   keymap, macros, per-key colours and settings the moment it is pressed (refused only on a critical battery).
-* Caps Word (`CW_TOGG`), Repeat Key, Mouse Keys and `MT()`/`LT()` tap-hold keys work (tapping term 200 ms, permissive
-  hold).
+* Caps Word (`CW_TOGG`), Repeat Key, Mouse Keys and `MT()`/`LT()` tap-hold keys work. For the tap-hold keys, Chordal Hold
+  (a hold counts only together with a key of the other hand) and Flow Tap (a tap-hold key typed within 150 ms of the
+  previous key is a tap) are on (`via` image), tapping term 200 ms.
 * A layer kept on without Fn (`TG(1)`, `TO(1)`) makes Backspace held 3 s the factory reset and RShift+Esc the
   bootloader key, because those are the Fn-layer keys. Do not map them unless you want that.
 * Not built: Key Lock, Dynamic Macros, Combos, Tap Dance, Leader Key, Autocorrect (RAM).

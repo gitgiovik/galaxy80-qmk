@@ -47,9 +47,11 @@ Rules:
 
 | Id | Do | Expected |
 |---|---|---|
+| H-K2 | Shift+Backspace in a text editor | deletes forward; Backspace alone still backspaces |
 | H-K3 | Assign `CL_TOGG` (Ctrl/Caps swap) on *Any*, press it, wait 5 s, replug | the swap works at once and is still active after the replug; no stutter of the LEDs when pressing |
+| H-K4 | Mac and Windows OS keys (VIA custom keycodes) | the matching shortcut (Task View, File Explorer, Snip; on a Mac Mission Control, Launchpad, Siri) |
 | H-K5 | Snap Tap Mode Last, First, Second, Neutral, held A+D and W+S in a key tester | the documented resolution in each mode |
-| H-K6 | Assign an `MT()` key (for example `MT(MOD_LCTL, KC_A)`), tap it and hold it | tap types the letter, a hold over 200 ms is the modifier |
+| H-K6 | Assign `MT()` home-row mods, type fast | no accidental holds within a hand; Flow Tap keeps fast typing as taps |
 
 ## Wireless
 

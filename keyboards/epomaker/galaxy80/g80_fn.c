@@ -1,12 +1,16 @@
 // Copyright 2026 gitgiovik
+// Copyright 2024 @ Keychron (https://www.keychron.com)
 // SPDX-License-Identifier: GPL-2.0-or-later
+//
+// The OS shortcut keycodes follow the behaviour of Keychron's keychron_common.c @666862cb (NOTICE.md).
 //
 // Fn-layer actions of the stock firmware (v1.10) and the LED flashes that confirm them:
 //   Win-lock, key backlight off, next palette colour, side-bar mode, lock screen / show desktop,
 //   WASD swap, LAlt+Tab / LAlt+F4 blocking, SOCD, game mode, per-key editor, wireless keys,
-//   brightness (down to off, up back on) / speed limit flashes and the factory reset (Fn+Backspace
-//   held 3 s, or EE_CLR). QMK magic keycodes (swaps, NKRO) without the EEPROM write inside the key
-//   event.
+//   brightness (down to off, up back on) / speed limit flashes, OS shortcut keycodes (Mac Mission
+//   Control / Launchpad / Siri, Windows Task View / File Explorer / Snip) and the factory reset
+//   (Fn+Backspace held 3 s, or EE_CLR). QMK magic keycodes (swaps, NKRO) without the EEPROM write
+//   inside the key event. Also the Chordal Hold hand map for home-row mods.
 
 #include "g80_fn.h"
 
@@ -57,7 +61,53 @@ void g80_flash(uint8_t target, uint8_t led, uint8_t r, uint8_t g, uint8_t b, uin
     g80_fl.next    = timer_read32() + half_ms;
 }
 
+/* ------------------------------------------------------------------------- */
+/* OS shortcut keycodes                                                       */
+/* ------------------------------------------------------------------------- */
+#    define G80_SIRI_HOLD_MS 500
+static bool     g80_siri_on;
+static uint32_t g80_siri_t0;
+
+/* Siri on macOS needs Cmd+Space held for ~500 ms: released from the main loop, 500 ms after the
+ * last press of the key. Runs from g80_flash_task(), which the housekeeping calls every pass. */
+static void g80_os_task(void) {
+    if (g80_siri_on && timer_elapsed32(g80_siri_t0) >= G80_SIRI_HOLD_MS) {
+        g80_siri_on = false;
+        unregister_code(KC_LCMD);
+        unregister_code(KC_SPACE);
+    }
+}
+
+/* Win+Tab, Win+E, Win+Shift+S: pressed and released together with the key. The Win-lock
+ * (and game mode) blocks them like any other Win key. */
+static uint8_t g80_os_down; /* bit: chord registered by us (a blocked press must not release real keys) */
+
+static void g80_os_chord(uint16_t keycode, bool pressed) {
+    static const uint8_t chord[3][3] = {{KC_LGUI, KC_TAB, 0}, {KC_LGUI, KC_E, 0}, {KC_LGUI, KC_LSFT, KC_S}};
+    const uint8_t        n           = (uint8_t)(keycode - G80_TASK);
+    const uint8_t       *c           = chord[n];
+    if (pressed) {
+        if (g80_eff_win_lock()) {
+            return;
+        }
+        g80_os_down |= (uint8_t)(1u << n);
+    } else {
+        if (!(g80_os_down & (1u << n))) {
+            return;
+        }
+        g80_os_down &= (uint8_t)~(1u << n);
+    }
+    for (uint8_t i = 0; i < 3 && c[i]; i++) {
+        if (pressed) {
+            register_code(c[i]);
+        } else {
+            unregister_code(c[i]);
+        }
+    }
+}
+
 void g80_flash_task(void) {
+    g80_os_task();
     if (g80_fl.target == G80_FL_NONE) {
         return;
     }
@@ -151,6 +201,22 @@ static void g80_frst_start(void) {
     g80_pk_snap      = G80_SNAP_IDLE;
     g80_flash(G80_FL_KEYS, 0, 255, 255, 255, 13, 120); /* 7 white flashes */
 }
+
+/* ------------------------------------------------------------------------- */
+/* Chordal Hold hand map (compiled only where the keymap enables CHORDAL_HOLD)  */
+/* ------------------------------------------------------------------------- */
+#    ifdef CHORDAL_HOLD
+/* A tap-hold key resolves as "hold" only together with a key of the OTHER hand (same hand = tap).
+ * Bit n of a row = column n is typed with the left hand. Space (r5c6) and Fn (r5c11) count for
+ * both hands. Inert without MT()/LT() keys. */
+char chordal_hold_handedness(keypos_t key) {
+    static const uint8_t left[MATRIX_ROWS] = {0x3F, 0x7F, 0x3F, 0x3F, 0x7F, 0x07};
+    if (key.row == 5 && (key.col == 6 || key.col == 11)) {
+        return '*';
+    }
+    return (key.row < MATRIX_ROWS && key.col < 8 && (left[key.row] >> key.col & 1)) ? 'L' : 'R';
+}
+#    endif
 
 /* ------------------------------------------------------------------------- */
 /* Keys                                                                       */
@@ -436,6 +502,30 @@ bool g80_features_process_record(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
+        /* OS shortcuts (VIA custom keycodes) */
+        case G80_MCTRL:
+        case G80_LNPAD:
+            if (pressed) {
+                register_code(keycode == G80_MCTRL ? KC_MCTL : KC_LPAD);
+            } else {
+                unregister_code(keycode == G80_MCTRL ? KC_MCTL : KC_LPAD);
+            }
+            return false;
+        case G80_SIRI:
+            if (pressed && !g80_eff_win_lock()) {
+                if (!g80_siri_on) {
+                    g80_siri_on = true;
+                    register_code(KC_LCMD);
+                    register_code(KC_SPACE);
+                }
+                g80_siri_t0 = timer_read32();
+            }
+            return false;
+        case G80_TASK:
+        case G80_FILE:
+        case G80_SNIP:
+            g80_os_chord(keycode, pressed);
+            return false;
         default:
             return true;
     }
