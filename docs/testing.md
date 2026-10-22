@@ -51,6 +51,9 @@ build (see [building.md](building.md)).
 emulator suite, and uploads the images as workflow artifacts. A tag `v*` runs `release.yml`, which attaches the images,
 the VIA definition and the checksums to a GitHub release.
 
+The emulator step in CI only reports: unicorn often crashes on the hosted runners. Run the full suite
+locally (`tools/dev/g80_check.sh`) before tagging a release.
+
 ## Writing a test
 
 Copy the structure of a small suite (for example `suite_magic.py`): build a machine from the image, drive it, print `PASS`

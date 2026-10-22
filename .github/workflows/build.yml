@@ -59,7 +59,11 @@ jobs:
       - name: Static image checks
         run: python tests/emulator/static_check.py out/emu via default stage1
 
+      # unicorn crashes often on the hosted runners, so this step only reports. The full suite
+      # (tools/dev/g80_check.sh) must pass locally before a release (docs/testing.md).
       - name: Emulator suite
+        continue-on-error: true
+        timeout-minutes: 45
         env:
           G80_KBD: ${{ github.workspace }}/keyboards/epomaker/galaxy80
           G80_OBJDUMP: arm-none-eabi-objdump
